@@ -3,10 +3,12 @@
     "short_name": "DriedDepot",
     "description": "Business manager for organic dried powder products",
     "start_url": "./index.html",
+    "scope": "./",
     "display": "standalone",
-    "orientation": "portrait",
+    "orientation": "portrait-primary",
     "background_color": "#f0f4f1",
     "theme_color": "#2d6a4f",
+    "categories": ["business", "productivity"],
     "icons": [
         {
             "src": "icon.svg",

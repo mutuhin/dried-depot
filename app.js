@@ -14,6 +14,14 @@ let db = { purchases: [], production: [], costs: [], sales: [] };
 let pendingDelete = { type: null, id: null };
 
 // ============================================================
+//  FIREBASE SYNC STATE
+// ============================================================
+let fbDB        = null;
+let fbSyncKey   = '';
+let fbConnected = false;
+let deferredInstallPrompt = null;
+
+// ============================================================
 //  INIT
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -26,6 +34,32 @@ document.addEventListener('DOMContentLoaded', () => {
     // Re-render report summary when filters change
     ['report-type','report-startDate','report-endDate'].forEach(id => {
         document.getElementById(id).addEventListener('change', updateReportSummary);
+    });
+
+    // Service worker registration (PWA)
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+
+    // PWA install prompt (Android/Chrome)
+    window.addEventListener('beforeinstallprompt', e => {
+        e.preventDefault();
+        deferredInstallPrompt = e;
+        const banner = document.getElementById('installBanner');
+        if (banner) banner.classList.remove('d-none');
+    });
+
+    // Auto-connect Firebase if previously configured
+    autoConnectFirebase();
+
+    // Sync when user returns to the app tab
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden && fbConnected) {
+            pullFromFirebase().then(() => {
+                renderDashboard();
+                updateProductDatalist();
+            });
+        }
     });
 });
 
@@ -53,6 +87,13 @@ function loadAll() {
 }
 
 function saveAll() {
+    // Always save locally
+    saveAllLocal();
+    // Push to Firebase if connected
+    if (fbConnected) pushToFirebase();
+}
+
+function saveAllLocal() {
     localStorage.setItem(KEYS.purchases,  JSON.stringify(db.purchases));
     localStorage.setItem(KEYS.production, JSON.stringify(db.production));
     localStorage.setItem(KEYS.costs,      JSON.stringify(db.costs));
@@ -1002,6 +1043,180 @@ function updateProductDatalist() {
     ])];
     const dl = document.getElementById('product-datalist');
     if (dl) dl.innerHTML = names.map(n => `<option value="${esc(n)}">`).join('');
+}
+
+// ============================================================
+//  FIREBASE — real-time sync
+// ============================================================
+function arrToObj(arr) {
+    const o = {};
+    (arr || []).forEach(r => { o[r.id] = r; });
+    return o;
+}
+function objToArr(obj) {
+    return obj ? Object.values(obj) : [];
+}
+
+function autoConnectFirebase() {
+    const cfg  = localStorage.getItem('dd_fb_cfg');
+    const key  = localStorage.getItem('dd_fb_key');
+    if (cfg && key) {
+        try { connectFirebase(JSON.parse(cfg), key); } catch(e) {}
+    }
+}
+
+function connectFirebase(config, key) {
+    try {
+        if (!window.firebase) { setSyncStatus('error'); return false; }
+        if (!firebase.apps.length) firebase.initializeApp(config);
+        fbDB      = firebase.database();
+        fbSyncKey = key.replace(/[^a-zA-Z0-9_-]/g, '_');  // sanitize key
+        setSyncStatus('syncing');
+        // Pull once on connect, then push local data up if Firebase is empty
+        pullFromFirebase().then(() => {
+            fbConnected = true;
+            setSyncStatus('synced');
+            renderDashboard();
+            updateProductDatalist();
+        });
+        return true;
+    } catch(e) {
+        setSyncStatus('error');
+        return false;
+    }
+}
+
+async function pushToFirebase() {
+    if (!fbDB || !fbSyncKey) return;
+    setSyncStatus('syncing');
+    try {
+        await fbDB.ref('dd/' + fbSyncKey).set({
+            purchases:  arrToObj(db.purchases),
+            production: arrToObj(db.production),
+            costs:      arrToObj(db.costs),
+            sales:      arrToObj(db.sales),
+            _updated:   Date.now()
+        });
+        setSyncStatus('synced');
+    } catch(e) {
+        setSyncStatus('error');
+        toast('Sync failed — data saved locally', 'warning');
+    }
+}
+
+async function pullFromFirebase() {
+    if (!fbDB || !fbSyncKey) return;
+    setSyncStatus('syncing');
+    try {
+        const snap = await fbDB.ref('dd/' + fbSyncKey).once('value');
+        const data = snap.val();
+        if (data) {
+            db.purchases  = objToArr(data.purchases);
+            db.production = objToArr(data.production);
+            db.costs      = objToArr(data.costs);
+            db.sales      = objToArr(data.sales);
+            saveAllLocal();
+        } else {
+            // Firebase is empty — push local data up
+            await pushToFirebase();
+        }
+        setSyncStatus('synced');
+    } catch(e) {
+        setSyncStatus('error');
+    }
+}
+
+function setSyncStatus(status) {
+    const badge = document.getElementById('syncBadge');
+    const label = document.getElementById('syncStatusLabel');
+    if (!badge) return;
+
+    badge.classList.remove('d-none');
+    badge.className = 'sync-badge ' + status;
+
+    if (label) {
+        const map = { synced:'Connected ✓', syncing:'Syncing…', error:'Sync error' };
+        label.textContent = map[status] || status;
+        const colors = { synced:'bg-success', syncing:'bg-warning text-dark', error:'bg-danger' };
+        label.className = 'badge ' + (colors[status] || 'bg-secondary');
+    }
+}
+
+function openSyncSetup() {
+    const cfg = localStorage.getItem('dd_fb_cfg');
+    const key = localStorage.getItem('dd_fb_key');
+    if (cfg) {
+        try { document.getElementById('sync-config').value = JSON.stringify(JSON.parse(cfg), null, 2); } catch(e) {}
+    }
+    if (key) document.getElementById('sync-key').value = key;
+    document.getElementById('syncTestResult').classList.add('d-none');
+    new bootstrap.Modal(document.getElementById('syncModal')).show();
+}
+
+function saveAndConnectFirebase() {
+    const rawCfg = document.getElementById('sync-config').value.trim();
+    const key    = document.getElementById('sync-key').value.trim();
+    const resEl  = document.getElementById('syncTestResult');
+
+    if (!rawCfg || !key) {
+        resEl.className = 'alert alert-danger small';
+        resEl.textContent = 'Both fields are required.';
+        resEl.classList.remove('d-none');
+        return;
+    }
+
+    let config;
+    try {
+        // Accept both plain object and the full "const firebaseConfig = {...}" format
+        const jsonStr = rawCfg.replace(/^[\s\S]*?(\{[\s\S]*\})[\s\S]*$/, '$1');
+        config = JSON.parse(jsonStr);
+    } catch(e) {
+        resEl.className = 'alert alert-danger small';
+        resEl.textContent = 'Invalid JSON. Copy the config object exactly from Firebase console.';
+        resEl.classList.remove('d-none');
+        return;
+    }
+
+    if (!config.databaseURL) {
+        resEl.className = 'alert alert-warning small';
+        resEl.textContent = 'Missing databaseURL. Make sure you enabled Realtime Database in Firebase and the config includes "databaseURL".';
+        resEl.classList.remove('d-none');
+        return;
+    }
+
+    localStorage.setItem('dd_fb_cfg', JSON.stringify(config));
+    localStorage.setItem('dd_fb_key', key);
+
+    resEl.className = 'alert alert-info small';
+    resEl.textContent = 'Connecting…';
+    resEl.classList.remove('d-none');
+
+    const ok = connectFirebase(config, key);
+    if (ok) {
+        resEl.className = 'alert alert-success small';
+        resEl.textContent = '✓ Connected! Your data will now sync across all devices using the same key.';
+        setTimeout(() => bootstrap.Modal.getInstance(document.getElementById('syncModal'))?.hide(), 1500);
+    } else {
+        resEl.className = 'alert alert-danger small';
+        resEl.textContent = 'Connection failed. Check the config and try again.';
+    }
+}
+
+// ============================================================
+//  PWA INSTALL
+// ============================================================
+function installPWA() {
+    if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        deferredInstallPrompt.userChoice.then(() => {
+            deferredInstallPrompt = null;
+            dismissInstall();
+        });
+    }
+}
+function dismissInstall() {
+    const b = document.getElementById('installBanner');
+    if (b) b.classList.add('d-none');
 }
 
 // ============================================================
