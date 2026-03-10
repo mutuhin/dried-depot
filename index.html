@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#2d6a4f">
+    <title>Dried Depot</title>
+    <link rel="manifest" href="manifest.json">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="style.css" rel="stylesheet">
+</head>
+<body>
+
+<!-- Top Navbar -->
+<nav class="navbar navbar-dark" style="background-color: #2d6a4f;">
+    <div class="container-fluid">
+        <span class="navbar-brand fw-bold fs-6">
+            <i class="fas fa-leaf me-2"></i>Dried Depot
+        </span>
+        <span class="text-white-50 small" id="currentDate"></span>
+    </div>
+</nav>
+
+<!-- Main Content -->
+<div class="main-content">
+
+    <!-- ===== DASHBOARD TAB ===== -->
+    <div id="tab-dashboard" class="tab-section">
+        <div class="container-fluid p-3">
+            <p class="text-muted small mb-2">Business Overview</p>
+
+            <div class="row g-2 mb-2">
+                <div class="col-6">
+                    <div class="card stat-card border-0 shadow-sm h-100 stat-green">
+                        <div class="card-body p-3">
+                            <div class="text-muted small">Total Investment</div>
+                            <div class="fw-bold fs-6 text-success" id="stat-totalInvestment">₹0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card stat-card border-0 shadow-sm h-100 stat-blue">
+                        <div class="card-body p-3">
+                            <div class="text-muted small">Raw Material Cost</div>
+                            <div class="fw-bold fs-6 text-primary" id="stat-rawCost">₹0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-2 mb-3">
+                <div class="col-6">
+                    <div class="card stat-card border-0 shadow-sm h-100 stat-yellow">
+                        <div class="card-body p-3">
+                            <div class="text-muted small">Powder Produced</div>
+                            <div class="fw-bold fs-6 text-warning" id="stat-powderProduced">0g</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card stat-card border-0 shadow-sm h-100 stat-red">
+                        <div class="card-body p-3">
+                            <div class="text-muted small">Other Costs</div>
+                            <div class="fw-bold fs-6 text-danger" id="stat-otherCosts">₹0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <p class="text-muted small mb-2">Quick Add</p>
+            <div class="row g-2 mb-4">
+                <div class="col-4">
+                    <button class="btn btn-success w-100 py-3 quick-btn" onclick="openModal('purchase')">
+                        <i class="fas fa-cart-plus d-block mb-1"></i>
+                        <small>Purchase</small>
+                    </button>
+                </div>
+                <div class="col-4">
+                    <button class="btn btn-primary w-100 py-3 quick-btn" onclick="openModal('production')">
+                        <i class="fas fa-industry d-block mb-1"></i>
+                        <small>Production</small>
+                    </button>
+                </div>
+                <div class="col-4">
+                    <button class="btn btn-warning w-100 py-3 quick-btn" onclick="openModal('cost')">
+                        <i class="fas fa-coins d-block mb-1"></i>
+                        <small>Cost</small>
+                    </button>
+                </div>
+            </div>
+
+            <p class="text-muted small mb-2">Recent Purchases</p>
+            <div id="recent-purchases" class="mb-3"></div>
+
+            <p class="text-muted small mb-2">Recent Production</p>
+            <div id="recent-production" class="mb-3"></div>
+        </div>
+    </div>
+
+    <!-- ===== PURCHASES TAB ===== -->
+    <div id="tab-purchases" class="tab-section d-none">
+        <div class="container-fluid p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <p class="text-muted small mb-0">Purchase Records</p>
+                <button class="btn btn-success btn-sm" onclick="openModal('purchase')">
+                    <i class="fas fa-plus me-1"></i>Add
+                </button>
+            </div>
+            <div id="purchases-list"></div>
+        </div>
+    </div>
+
+    <!-- ===== PRODUCTION TAB ===== -->
+    <div id="tab-production" class="tab-section d-none">
+        <div class="container-fluid p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <p class="text-muted small mb-0">Production Records</p>
+                <button class="btn btn-primary btn-sm" onclick="openModal('production')">
+                    <i class="fas fa-plus me-1"></i>Add
+                </button>
+            </div>
+            <div id="production-list"></div>
+        </div>
+    </div>
+
+    <!-- ===== COSTS TAB ===== -->
+    <div id="tab-costs" class="tab-section d-none">
+        <div class="container-fluid p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <p class="text-muted small mb-0">Cost Records</p>
+                <button class="btn btn-warning btn-sm" onclick="openModal('cost')">
+                    <i class="fas fa-plus me-1"></i>Add
+                </button>
+            </div>
+            <div id="costs-list"></div>
+        </div>
+    </div>
+
+    <!-- ===== REPORTS TAB ===== -->
+    <div id="tab-reports" class="tab-section d-none">
+        <div class="container-fluid p-3">
+            <p class="text-muted small mb-3">Export & Reports</p>
+
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Date Range</label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <input type="date" class="form-control form-control-sm" id="report-startDate">
+                            </div>
+                            <div class="col-6">
+                                <input type="date" class="form-control form-control-sm" id="report-endDate">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Data Type</label>
+                        <select class="form-select form-select-sm" id="report-type">
+                            <option value="all">All Records</option>
+                            <option value="purchases">Purchases Only</option>
+                            <option value="production">Production Only</option>
+                            <option value="costs">Costs Only</option>
+                        </select>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-success flex-fill" onclick="exportCSV()">
+                            <i class="fas fa-file-csv me-1"></i>Export CSV
+                        </button>
+                        <button class="btn btn-danger flex-fill" onclick="exportPDF()">
+                            <i class="fas fa-file-pdf me-1"></i>Export PDF
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <p class="fw-semibold mb-3">Summary</p>
+                    <div id="report-summary"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div><!-- end main-content -->
+
+<!-- ===== BOTTOM NAVIGATION ===== -->
+<nav class="bottom-nav">
+    <div class="bottom-nav-item active" onclick="switchTab('dashboard')" id="nav-dashboard">
+        <i class="fas fa-home"></i>
+        <span>Home</span>
+    </div>
+    <div class="bottom-nav-item" onclick="switchTab('purchases')" id="nav-purchases">
+        <i class="fas fa-shopping-cart"></i>
+        <span>Purchases</span>
+    </div>
+    <div class="bottom-nav-item" onclick="switchTab('production')" id="nav-production">
+        <i class="fas fa-cogs"></i>
+        <span>Production</span>
+    </div>
+    <div class="bottom-nav-item" onclick="switchTab('costs')" id="nav-costs">
+        <i class="fas fa-coins"></i>
+        <span>Costs</span>
+    </div>
+    <div class="bottom-nav-item" onclick="switchTab('reports')" id="nav-reports">
+        <i class="fas fa-chart-bar"></i>
+        <span>Reports</span>
+    </div>
+</nav>
+
+<!-- ===== PURCHASE MODAL ===== -->
+<div class="modal fade" id="purchaseModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header modal-header-green">
+                <h5 class="modal-title"><i class="fas fa-cart-plus me-2"></i><span id="purchaseModalTitle">Add Purchase</span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="purchaseForm" novalidate>
+                    <input type="hidden" id="purchase-id">
+                    <div class="mb-3">
+                        <label class="form-label">Date *</label>
+                        <input type="date" class="form-control" id="purchase-date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Product Name *</label>
+                        <input type="text" class="form-control" id="purchase-product"
+                            placeholder="e.g., Moringa Leaves" required list="product-datalist" autocomplete="off">
+                        <datalist id="product-datalist"></datalist>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label">Quantity (kg) *</label>
+                            <input type="number" class="form-control" id="purchase-qty"
+                                step="0.01" min="0.01" required oninput="calcPurchaseTotal()">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Price / kg (₹) *</label>
+                            <input type="number" class="form-control" id="purchase-price"
+                                step="0.01" min="0" required oninput="calcPurchaseTotal()">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Total Cost (₹)</label>
+                        <input type="number" class="form-control bg-light" id="purchase-total" readonly tabindex="-1">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Supplier <span class="text-muted small">(optional)</span></label>
+                        <input type="text" class="form-control" id="purchase-supplier" placeholder="Supplier name / market">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes <span class="text-muted small">(optional)</span></label>
+                        <textarea class="form-control" id="purchase-notes" rows="2" placeholder="Quality, condition..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="savePurchase()">
+                    <i class="fas fa-save me-1"></i>Save
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== PRODUCTION MODAL ===== -->
+<div class="modal fade" id="productionModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header modal-header-blue">
+                <h5 class="modal-title"><i class="fas fa-industry me-2"></i><span id="productionModalTitle">Add Production</span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="productionForm" novalidate>
+                    <input type="hidden" id="production-id">
+                    <div class="mb-3">
+                        <label class="form-label">Date *</label>
+                        <input type="date" class="form-control" id="production-date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Product Name *</label>
+                        <input type="text" class="form-control" id="production-product"
+                            placeholder="e.g., Moringa Powder" required list="product-datalist" autocomplete="off">
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label">Raw Material Used (kg) *</label>
+                            <input type="number" class="form-control" id="production-rawKg"
+                                step="0.01" min="0.01" required oninput="calcYield()">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Powder Yield (grams) *</label>
+                            <input type="number" class="form-control" id="production-yieldGrams"
+                                step="1" min="1" required oninput="calcYield()">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Yield Percentage</label>
+                        <div class="input-group">
+                            <input type="text" class="form-control bg-light fw-bold" id="production-yieldPct" readonly tabindex="-1">
+                            <span class="input-group-text">%</span>
+                        </div>
+                        <div class="form-text">Auto-calculated from raw material vs powder</div>
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label">Machine Time — Hours</label>
+                            <input type="number" class="form-control" id="production-hours" min="0" value="0">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label">Minutes</label>
+                            <input type="number" class="form-control" id="production-minutes" min="0" max="59" value="0">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes <span class="text-muted small">(optional)</span></label>
+                        <textarea class="form-control" id="production-notes" rows="2" placeholder="Batch info, quality..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveProduction()">
+                    <i class="fas fa-save me-1"></i>Save
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== COST MODAL ===== -->
+<div class="modal fade" id="costModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header modal-header-orange">
+                <h5 class="modal-title"><i class="fas fa-coins me-2"></i><span id="costModalTitle">Add Cost</span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="costForm" novalidate>
+                    <input type="hidden" id="cost-id">
+                    <div class="mb-3">
+                        <label class="form-label">Date *</label>
+                        <input type="date" class="form-control" id="cost-date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Category *</label>
+                        <select class="form-select" id="cost-category" required>
+                            <option value="">Select Category</option>
+                            <option value="Machine">Machine</option>
+                            <option value="Grinder">Grinder</option>
+                            <option value="Dryer">Dryer / Dehydrator</option>
+                            <option value="Container">Container / Packaging</option>
+                            <option value="Labor">Labor</option>
+                            <option value="Electricity">Electricity</option>
+                            <option value="Rent">Rent</option>
+                            <option value="Transport">Transport</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Item Name *</label>
+                        <input type="text" class="form-control" id="cost-item" placeholder="e.g., Dryer Machine, Plastic Jars">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Amount (₹) *</label>
+                        <input type="number" class="form-control" id="cost-amount" step="0.01" min="0" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes <span class="text-muted small">(optional)</span></label>
+                        <textarea class="form-control" id="cost-notes" rows="2" placeholder="Details..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" onclick="saveCost()">
+                    <i class="fas fa-save me-1"></i>Save
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== DELETE CONFIRM MODAL ===== -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h6 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>Delete Record?</h6>
+            </div>
+            <div class="modal-body small">
+                This action cannot be undone.
+            </div>
+            <div class="modal-footer py-2">
+                <button class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-danger btn-sm" id="confirmDeleteBtn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== TOAST ===== -->
+<div class="position-fixed end-0 p-3 toast-container-custom">
+    <div id="appToast" class="toast align-items-center text-white border-0" role="alert" aria-live="assertive">
+        <div class="d-flex">
+            <div class="toast-body" id="toastMessage">Saved!</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
