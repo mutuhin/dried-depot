@@ -1167,12 +1167,18 @@ function saveAndConnectFirebase() {
 
     let config;
     try {
-        // Accept both plain object and the full "const firebaseConfig = {...}" format
-        const jsonStr = rawCfg.replace(/^[\s\S]*?(\{[\s\S]*\})[\s\S]*$/, '$1');
+        // Extract the {...} block from any surrounding JS code
+        const jsonStr = rawCfg.replace(/^[\s\S]*?(\{[\s\S]*\})[\s\S]*$/, '$1')
+            // Quote unquoted JS object keys
+            .replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":')
+            // Replace single-quoted values with double-quoted
+            .replace(/:\s*'([^'\\]*(\\.[^'\\]*)*)'/g, ': "$1"')
+            // Remove trailing commas before } or ]
+            .replace(/,(\s*[}\]])/g, '$1');
         config = JSON.parse(jsonStr);
     } catch(e) {
         resEl.className = 'alert alert-danger small';
-        resEl.textContent = 'Invalid JSON. Copy the config object exactly from Firebase console.';
+        resEl.textContent = 'Could not parse config. Paste only the { ... } block from Firebase console.';
         resEl.classList.remove('d-none');
         return;
     }
