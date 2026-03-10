@@ -219,6 +219,27 @@
                 </div>
             </div>
 
+            <!-- Backup / Restore — sync data between devices -->
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <p class="fw-semibold mb-1">
+                        <i class="fas fa-sync-alt me-1 text-muted"></i>Backup &amp; Restore
+                    </p>
+                    <p class="text-muted small mb-3">
+                        Data is saved on <strong>this device only</strong>. Use Backup to save a file, then Restore on another device to transfer your records.
+                    </p>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-primary flex-fill" onclick="backupData()">
+                            <i class="fas fa-download me-1"></i>Backup
+                        </button>
+                        <label class="btn btn-outline-warning flex-fill mb-0" style="cursor:pointer">
+                            <i class="fas fa-upload me-1"></i>Restore
+                            <input type="file" id="restoreFileInput" accept=".json" style="display:none" onchange="restoreData(event)">
+                        </label>
+                    </div>
+                </div>
+            </div>
+
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
                     <p class="fw-semibold mb-3">Summary</p>

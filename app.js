@@ -1003,3 +1003,57 @@ function updateProductDatalist() {
     const dl = document.getElementById('product-datalist');
     if (dl) dl.innerHTML = names.map(n => `<option value="${esc(n)}">`).join('');
 }
+
+// ============================================================
+//  BACKUP & RESTORE — transfer data between devices
+// ============================================================
+function backupData() {
+    const backup = {
+        version:    1,
+        exportedAt: new Date().toISOString(),
+        purchases:  db.purchases,
+        production: db.production,
+        costs:      db.costs,
+        sales:      db.sales
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    dlBlob(blob, `DriedDepot_backup_${today()}.json`);
+    toast('Backup downloaded!', 'success');
+}
+
+function restoreData(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        try {
+            const data = JSON.parse(e.target.result);
+            if (!data.purchases && !data.production && !data.costs && !data.sales) {
+                toast('Invalid backup file!', 'danger');
+                return;
+            }
+            // Merge: add records that don't already exist (by id)
+            const merge = (existing, incoming) => {
+                const ids = new Set(existing.map(r => r.id));
+                return [...existing, ...(incoming || []).filter(r => !ids.has(r.id))];
+            };
+            db.purchases  = merge(db.purchases,  data.purchases);
+            db.production = merge(db.production, data.production);
+            db.costs      = merge(db.costs,      data.costs);
+            db.sales      = merge(db.sales,      data.sales);
+            saveAll();
+            renderDashboard();
+            renderPurchases();
+            renderProduction();
+            renderCosts();
+            renderSales();
+            updateProductDatalist();
+            toast('Data restored successfully!', 'success');
+        } catch {
+            toast('Could not read file!', 'danger');
+        }
+        // Reset input so same file can be picked again
+        event.target.value = '';
+    };
+    reader.readAsText(file);
+}
