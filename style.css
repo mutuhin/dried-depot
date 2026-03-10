@@ -93,6 +93,12 @@ body {
 .stat-blue  { border-left-color: #1565c0 !important; }
 .stat-yellow{ border-left-color: #f57f17 !important; }
 .stat-red   { border-left-color: #c62828 !important; }
+.stat-profit { border-left-color: #6a0dad !important; }
+
+.modal-header-teal {
+    background-color: #00796b;
+    color: #fff;
+}
 
 /* ----------------------------------------
    RECORD CARDS
@@ -248,6 +254,16 @@ body {
 @media (max-width: 360px) {
     .bottom-nav-item {
         font-size: 0.55rem;
+    }
+    .bottom-nav-item i {
+        font-size: 1rem;
+    }
+}
+
+/* 6-item bottom nav */
+@media (max-width: 420px) {
+    .bottom-nav-item {
+        font-size: 0.58rem;
     }
     .bottom-nav-item i {
         font-size: 1rem;

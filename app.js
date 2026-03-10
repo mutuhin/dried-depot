@@ -6,10 +6,11 @@
 const KEYS = {
     purchases:  'dd_purchases',
     production: 'dd_production',
-    costs:      'dd_costs'
+    costs:      'dd_costs',
+    sales:      'dd_sales'
 };
 
-let db = { purchases: [], production: [], costs: [] };
+let db = { purchases: [], production: [], costs: [], sales: [] };
 let pendingDelete = { type: null, id: null };
 
 // ============================================================
@@ -35,7 +36,7 @@ function updateCurrentDate() {
 
 function setDefaultDates() {
     const today = new Date().toISOString().split('T')[0];
-    ['purchase-date','production-date','cost-date'].forEach(id => {
+    ['purchase-date','production-date','cost-date','sale-date'].forEach(id => {
         const el = document.getElementById(id);
         if (el && !el.value) el.value = today;
     });
@@ -48,12 +49,14 @@ function loadAll() {
     db.purchases  = JSON.parse(localStorage.getItem(KEYS.purchases)  || '[]');
     db.production = JSON.parse(localStorage.getItem(KEYS.production) || '[]');
     db.costs      = JSON.parse(localStorage.getItem(KEYS.costs)      || '[]');
+    db.sales      = JSON.parse(localStorage.getItem(KEYS.sales)      || '[]');
 }
 
 function saveAll() {
     localStorage.setItem(KEYS.purchases,  JSON.stringify(db.purchases));
     localStorage.setItem(KEYS.production, JSON.stringify(db.production));
     localStorage.setItem(KEYS.costs,      JSON.stringify(db.costs));
+    localStorage.setItem(KEYS.sales,      JSON.stringify(db.sales));
 }
 
 function uid() {
@@ -75,6 +78,7 @@ function switchTab(name) {
         purchases:  renderPurchases,
         production: renderProduction,
         costs:      renderCosts,
+        sales:      renderSales,
         reports:    updateReportSummary
     };
     if (renders[name]) renders[name]();
@@ -88,7 +92,8 @@ function openModal(type, id = null) {
     const configs = {
         purchase:   { modal: 'purchaseModal',   form: 'purchaseForm',   titleEl: 'purchaseModalTitle' },
         production: { modal: 'productionModal', form: 'productionForm', titleEl: 'productionModalTitle' },
-        cost:       { modal: 'costModal',       form: 'costForm',       titleEl: 'costModalTitle' }
+        cost:       { modal: 'costModal',       form: 'costForm',       titleEl: 'costModalTitle' },
+        sale:       { modal: 'saleModal',       form: 'saleForm',       titleEl: 'saleModalTitle' }
     };
     const cfg = configs[type];
 
@@ -142,6 +147,21 @@ function populateForm(type, id) {
         set('cost-amount', r.amount);
         set('cost-notes', r.notes || '');
     }
+    if (type === 'sale') {
+        const r = db.sales.find(x => x.id === id);
+        if (!r) return;
+        set('sale-id', r.id);
+        set('sale-date', r.date);
+        set('sale-product', r.product);
+        set('sale-qty', r.quantitySold);
+        set('sale-unit', r.unit);
+        set('sale-price', r.sellingPrice);
+        set('sale-pricePer', r.pricePer);
+        set('sale-total', r.totalRevenue);
+        set('sale-customer', r.customer || '');
+        set('sale-notes', r.notes || '');
+        updateSaleRateDisplay(r.quantitySold, r.unit, r.totalRevenue);
+    }
 }
 
 // ============================================================
@@ -160,6 +180,39 @@ function calcYield() {
         set('production-yieldPct', ((grams / (rawKg * 1000)) * 100).toFixed(1));
     } else {
         set('production-yieldPct', '');
+    }
+}
+
+function calcSaleTotal() {
+    const qty      = parseFloat(val('sale-qty'))   || 0;
+    const price    = parseFloat(val('sale-price')) || 0;
+    const unit     = val('sale-unit');
+    const pricePer = val('sale-pricePer');
+
+    // Convert qty to grams
+    const qtyGrams = unit === 'kg' ? qty * 1000 : qty;
+
+    let total = 0;
+    if (pricePer === 'total') {
+        total = price;
+    } else {
+        const perGrams = pricePer === '100g' ? 100 : pricePer === '250g' ? 250 : pricePer === '500g' ? 500 : 1000;
+        total = (qtyGrams / perGrams) * price;
+    }
+
+    set('sale-total', total > 0 ? total.toFixed(2) : '');
+    updateSaleRateDisplay(qty, unit, total);
+}
+
+function updateSaleRateDisplay(qty, unit, total) {
+    const el = document.getElementById('sale-rate-display');
+    if (!el) return;
+    const qtyGrams = unit === 'kg' ? (qty || 0) * 1000 : (qty || 0);
+    if (qtyGrams > 0 && total > 0) {
+        const per100g = ((total / qtyGrams) * 100).toFixed(2);
+        el.textContent = '= ₹' + per100g + ' per 100g';
+    } else {
+        el.textContent = '';
     }
 }
 
@@ -252,6 +305,44 @@ function saveCost() {
 }
 
 // ============================================================
+//  SAVE — SALES
+// ============================================================
+function saveSale() {
+    const form = document.getElementById('saleForm');
+    if (!form.checkValidity()) { form.reportValidity(); return; }
+
+    const id       = val('sale-id');
+    const qty      = parseFloat(val('sale-qty'));
+    const unit     = val('sale-unit');
+    const price    = parseFloat(val('sale-price'));
+    const pricePer = val('sale-pricePer');
+    const total    = parseFloat(val('sale-total')) || 0;
+    const qtyGrams = unit === 'kg' ? qty * 1000 : qty;
+
+    const record = {
+        id:           id || uid(),
+        date:         val('sale-date'),
+        product:      val('sale-product').trim(),
+        quantitySold: qty,
+        unit:         unit,
+        quantityGrams: qtyGrams,
+        sellingPrice: price,
+        pricePer:     pricePer,
+        totalRevenue: total,
+        customer:     val('sale-customer').trim(),
+        notes:        val('sale-notes').trim(),
+        createdAt:    new Date().toISOString()
+    };
+
+    upsert(db.sales, id, record);
+    saveAll();
+    hideModal('saleModal');
+    renderDashboard();
+    renderSales();
+    toast('Sale recorded!', 'success');
+}
+
+// ============================================================
 //  DELETE
 // ============================================================
 function deleteRecord(type, id) {
@@ -259,7 +350,7 @@ function deleteRecord(type, id) {
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
 
     document.getElementById('confirmDeleteBtn').onclick = () => {
-        const map = { purchase: 'purchases', production: 'production', cost: 'costs' };
+        const map = { purchase: 'purchases', production: 'production', cost: 'costs', sale: 'sales' };
         const key = map[pendingDelete.type];
         db[key] = db[key].filter(r => r.id !== pendingDelete.id);
         saveAll();
@@ -268,6 +359,7 @@ function deleteRecord(type, id) {
         renderPurchases();
         renderProduction();
         renderCosts();
+        renderSales();
         toast('Record deleted', 'danger');
     };
 }
@@ -276,14 +368,22 @@ function deleteRecord(type, id) {
 //  RENDER — DASHBOARD
 // ============================================================
 function renderDashboard() {
-    const totalRaw   = db.purchases.reduce((s, r) => s + (r.totalCost || 0), 0);
-    const totalOther = db.costs.reduce((s, r) => s + (r.amount || 0), 0);
+    const totalRaw    = db.purchases.reduce((s, r) => s + (r.totalCost || 0), 0);
+    const totalOther  = db.costs.reduce((s, r) => s + (r.amount || 0), 0);
+    const totalInvest = totalRaw + totalOther;
+    const totalRevenue = db.sales.reduce((s, r) => s + (r.totalRevenue || 0), 0);
+    const profitLoss  = totalRevenue - totalInvest;
     const totalPowder = db.production.reduce((s, r) => s + (r.powderYieldGrams || 0), 0);
 
-    set('stat-totalInvestment', '₹' + fNum(totalRaw + totalOther));
+    set('stat-totalInvestment', '₹' + fNum(totalInvest));
     set('stat-rawCost',         '₹' + fNum(totalRaw));
     set('stat-powderProduced',  fWeight(totalPowder));
     set('stat-otherCosts',      '₹' + fNum(totalOther));
+    set('stat-totalRevenue',    '₹' + fNum(totalRevenue));
+    set('stat-profitLoss',      (profitLoss >= 0 ? '+' : '') + '₹' + fNum(profitLoss));
+
+    const plEl = document.getElementById('stat-profitLoss');
+    if (plEl) plEl.className = 'fw-bold fs-6 ' + (profitLoss >= 0 ? 'text-success' : 'text-danger');
 
     // Recent purchases (last 5)
     const rp = db.purchases.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
@@ -322,6 +422,27 @@ function renderDashboard() {
                     </div>
                 </div>
             </div>`).join('');
+
+    // Recent sales (last 5)
+    const rsales = db.sales.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
+    const rsEl = document.getElementById('recent-sales');
+    if (rsEl) {
+        rsEl.innerHTML = rsales.length === 0
+            ? emptyState('fa-tags', 'No sales yet')
+            : rsales.map(r => `
+                <div class="card record-card">
+                    <div class="card-body d-flex justify-content-between align-items-center py-2">
+                        <div>
+                            <div class="fw-semibold small">${esc(r.product)}</div>
+                            <div class="text-muted" style="font-size:0.72rem">${fDate(r.date)}${r.customer ? ' &bull; ' + esc(r.customer) : ''}</div>
+                        </div>
+                        <div class="text-end">
+                            <div class="fw-bold text-success small">₹${fNum(r.totalRevenue)}</div>
+                            <div class="text-muted" style="font-size:0.7rem">${fWeight(r.quantityGrams)}</div>
+                        </div>
+                    </div>
+                </div>`).join('');
+    }
 }
 
 // ============================================================
@@ -484,6 +605,54 @@ function renderCosts() {
 }
 
 // ============================================================
+//  RENDER — SALES
+// ============================================================
+function renderSales() {
+    const el = document.getElementById('sales-list');
+    if (!el) return;
+
+    if (db.sales.length === 0) {
+        el.innerHTML = `<div class="empty-state">
+            <i class="fas fa-tags d-block"></i>
+            <p class="mb-2">No sales records yet</p>
+            <button class="btn btn-success btn-sm" onclick="openModal('sale')">Add First Sale</button>
+        </div>`;
+        return;
+    }
+
+    const sorted = db.sales.slice().sort((a, b) => b.date.localeCompare(a.date));
+    el.innerHTML = sorted.map(r => `
+        <div class="card record-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                    <div>
+                        <div class="fw-semibold">${esc(r.product)}</div>
+                        <div class="text-muted small">${fDate(r.date)}${r.customer ? ' &bull; ' + esc(r.customer) : ''}</div>
+                    </div>
+                    <div class="text-end ms-2">
+                        <div class="fw-bold text-success">₹${fNum(r.totalRevenue)}</div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
+                    <div>
+                        <span class="badge bg-light text-dark border me-1">${r.quantitySold} ${r.unit}</span>
+                        <span class="badge bg-light text-dark border">₹${((r.totalRevenue / (r.quantityGrams || 1)) * 100).toFixed(0)}/100g</span>
+                        ${r.notes ? '<div class="text-muted small mt-1">' + esc(r.notes) + '</div>' : ''}
+                    </div>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-outline-primary btn-sm" onclick="openModal('sale','${r.id}')">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="deleteRecord('sale','${r.id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>`).join('');
+}
+
+// ============================================================
 //  REPORTS — filter + summary
 // ============================================================
 function getFiltered() {
@@ -500,7 +669,8 @@ function getFiltered() {
     return {
         purchases:  (type === 'all' || type === 'purchases')  ? byDate(db.purchases)  : [],
         production: (type === 'all' || type === 'production') ? byDate(db.production) : [],
-        costs:      (type === 'all' || type === 'costs')      ? byDate(db.costs)      : []
+        costs:      (type === 'all' || type === 'costs')      ? byDate(db.costs)      : [],
+        sales:      (type === 'all' || type === 'sales')      ? byDate(db.sales)      : []
     };
 }
 
@@ -509,16 +679,19 @@ function updateReportSummary() {
     const el  = document.getElementById('report-summary');
     if (!el) return;
 
-    const tPurch = d.purchases.reduce((s, r) => s + r.totalCost, 0);
-    const tCost  = d.costs.reduce((s, r) => s + r.amount, 0);
-    const tPowder = d.production.reduce((s, r) => s + r.powderYieldGrams, 0);
+    const tPurch   = d.purchases.reduce((s, r) => s + r.totalCost, 0);
+    const tCost    = d.costs.reduce((s, r) => s + r.amount, 0);
+    const tPowder  = d.production.reduce((s, r) => s + r.powderYieldGrams, 0);
+    const tRevenue = d.sales.reduce((s, r) => s + r.totalRevenue, 0);
+    const tInvest  = tPurch + tCost;
+    const profit   = tRevenue - tInvest;
 
     el.innerHTML = `
         <div class="row g-2">
             <div class="col-6">
                 <div class="bg-light rounded p-2 text-center">
                     <div class="text-muted small">Purchases</div>
-                    <div class="fw-bold text-success">₹${fNum(tPurch)}</div>
+                    <div class="fw-bold text-primary">₹${fNum(tPurch)}</div>
                     <div class="text-muted" style="font-size:0.72rem">${d.purchases.length} records</div>
                 </div>
             </div>
@@ -531,16 +704,30 @@ function updateReportSummary() {
             </div>
             <div class="col-6">
                 <div class="bg-light rounded p-2 text-center">
-                    <div class="text-muted small">Powder Made</div>
-                    <div class="fw-bold text-primary">${fWeight(tPowder)}</div>
-                    <div class="text-muted" style="font-size:0.72rem">${d.production.length} runs</div>
+                    <div class="text-muted small">Total Investment</div>
+                    <div class="fw-bold text-dark">₹${fNum(tInvest)}</div>
+                    <div class="text-muted" style="font-size:0.72rem">buy + costs</div>
                 </div>
             </div>
             <div class="col-6">
                 <div class="bg-light rounded p-2 text-center">
-                    <div class="text-muted small">Total Spent</div>
-                    <div class="fw-bold">₹${fNum(tPurch + tCost)}</div>
-                    <div class="text-muted" style="font-size:0.72rem">all categories</div>
+                    <div class="text-muted small">Revenue (Sales)</div>
+                    <div class="fw-bold text-success">₹${fNum(tRevenue)}</div>
+                    <div class="text-muted" style="font-size:0.72rem">${d.sales.length} orders</div>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="bg-light rounded p-2 text-center">
+                    <div class="text-muted small">Profit / Loss</div>
+                    <div class="fw-bold ${profit >= 0 ? 'text-success' : 'text-danger'}">${profit >= 0 ? '+' : ''}₹${fNum(profit)}</div>
+                    <div class="text-muted" style="font-size:0.72rem">revenue − invest</div>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="bg-light rounded p-2 text-center">
+                    <div class="text-muted small">Powder Made</div>
+                    <div class="fw-bold text-warning">${fWeight(tPowder)}</div>
+                    <div class="text-muted" style="font-size:0.72rem">${d.production.length} runs</div>
                 </div>
             </div>
         </div>`;
@@ -579,6 +766,15 @@ function exportCSV() {
         });
     }
 
+    if (d.sales.length > 0) {
+        csv += '\nSALES\n';
+        csv += 'Date,Product,Quantity Sold,Unit,Total Revenue (Rs),Rate per 100g (Rs),Customer,Notes\n';
+        d.sales.forEach(r => {
+            const rate = r.quantityGrams > 0 ? ((r.totalRevenue / r.quantityGrams) * 100).toFixed(2) : '';
+            csv += `${r.date},"${r.product}",${r.quantitySold},"${r.unit}",${r.totalRevenue},${rate},"${r.customer||''}","${r.notes||''}"\n`;
+        });
+    }
+
     if (csv.trim() === '\uFEFF') { toast('No data to export!', 'warning'); return; }
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -591,7 +787,7 @@ function exportCSV() {
 // ============================================================
 function exportPDF() {
     const d = getFiltered();
-    if (!d.purchases.length && !d.production.length && !d.costs.length) {
+    if (!d.purchases.length && !d.production.length && !d.costs.length && !d.sales.length) {
         toast('No data to export!', 'warning');
         return;
     }
@@ -686,6 +882,47 @@ function exportPDF() {
             ]),
             theme: 'striped',
             headStyles: { fillColor: [245, 127, 23] },
+            margin: { left: 14, right: 14 }
+        });
+        y = doc.lastAutoTable.finalY + 12;
+    }
+
+    // Sales
+    if (d.sales.length > 0) {
+        if (y > 230) { doc.addPage(); y = 20; }
+        doc.setFontSize(11);
+        doc.text('Sales', 14, y); y += 3;
+        doc.autoTable({
+            startY: y,
+            head: [['Date', 'Product', 'Qty Sold', 'Revenue (Rs)', 'Rate/100g', 'Customer']],
+            body: d.sales.map(r => {
+                const rate = r.quantityGrams > 0 ? 'Rs ' + ((r.totalRevenue / r.quantityGrams) * 100).toFixed(2) : '';
+                return [fDate(r.date), r.product, r.quantitySold + ' ' + r.unit,
+                    'Rs ' + fNum(r.totalRevenue), rate, r.customer || ''];
+            }),
+            theme: 'striped',
+            headStyles: { fillColor: [0, 121, 107] },
+            margin: { left: 14, right: 14 }
+        });
+        y = doc.lastAutoTable.finalY + 12;
+
+        // Profit summary at bottom
+        const tRevenue = d.sales.reduce((s, r) => s + r.totalRevenue, 0);
+        const tInvest  = d.purchases.reduce((s, r) => s + r.totalCost, 0) + d.costs.reduce((s, r) => s + r.amount, 0);
+        const profit   = tRevenue - tInvest;
+        if (y > 230) { doc.addPage(); y = 20; }
+        doc.setFontSize(11);
+        doc.text('Profit / Loss Summary', 14, y); y += 3;
+        doc.autoTable({
+            startY: y,
+            head: [['Item', 'Amount']],
+            body: [
+                ['Total Investment (Purchases + Costs)', 'Rs ' + fNum(tInvest)],
+                ['Total Revenue (Sales)',                'Rs ' + fNum(tRevenue)],
+                ['Net Profit / Loss',                   (profit >= 0 ? '+' : '') + 'Rs ' + fNum(profit)],
+            ],
+            theme: 'striped',
+            headStyles: { fillColor: [45, 106, 79] },
             margin: { left: 14, right: 14 }
         });
     }

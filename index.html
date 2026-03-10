@@ -44,8 +44,27 @@
                 <div class="col-6">
                     <div class="card stat-card border-0 shadow-sm h-100 stat-blue">
                         <div class="card-body p-3">
-                            <div class="text-muted small">Raw Material Cost</div>
-                            <div class="fw-bold fs-6 text-primary" id="stat-rawCost">₹0</div>
+                            <div class="text-muted small">Total Revenue</div>
+                            <div class="fw-bold fs-6 text-primary" id="stat-totalRevenue">₹0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-2 mb-2">
+                <div class="col-6">
+                    <div class="card stat-card border-0 shadow-sm h-100 stat-profit">
+                        <div class="card-body p-3">
+                            <div class="text-muted small">Profit / Loss</div>
+                            <div class="fw-bold fs-6" id="stat-profitLoss">₹0</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card stat-card border-0 shadow-sm h-100 stat-yellow">
+                        <div class="card-body p-3">
+                            <div class="text-muted small">Powder Produced</div>
+                            <div class="fw-bold fs-6 text-warning" id="stat-powderProduced">0g</div>
                         </div>
                     </div>
                 </div>
@@ -53,10 +72,10 @@
 
             <div class="row g-2 mb-3">
                 <div class="col-6">
-                    <div class="card stat-card border-0 shadow-sm h-100 stat-yellow">
+                    <div class="card stat-card border-0 shadow-sm h-100 stat-blue">
                         <div class="card-body p-3">
-                            <div class="text-muted small">Powder Produced</div>
-                            <div class="fw-bold fs-6 text-warning" id="stat-powderProduced">0g</div>
+                            <div class="text-muted small">Raw Material Cost</div>
+                            <div class="fw-bold fs-6 text-primary" id="stat-rawCost">₹0</div>
                         </div>
                     </div>
                 </div>
@@ -73,22 +92,28 @@
             <!-- Quick Actions -->
             <p class="text-muted small mb-2">Quick Add</p>
             <div class="row g-2 mb-4">
-                <div class="col-4">
+                <div class="col-3">
                     <button class="btn btn-success w-100 py-3 quick-btn" onclick="openModal('purchase')">
                         <i class="fas fa-cart-plus d-block mb-1"></i>
                         <small>Purchase</small>
                     </button>
                 </div>
-                <div class="col-4">
+                <div class="col-3">
                     <button class="btn btn-primary w-100 py-3 quick-btn" onclick="openModal('production')">
                         <i class="fas fa-industry d-block mb-1"></i>
-                        <small>Production</small>
+                        <small>Produce</small>
                     </button>
                 </div>
-                <div class="col-4">
+                <div class="col-3">
                     <button class="btn btn-warning w-100 py-3 quick-btn" onclick="openModal('cost')">
                         <i class="fas fa-coins d-block mb-1"></i>
                         <small>Cost</small>
+                    </button>
+                </div>
+                <div class="col-3">
+                    <button class="btn btn-danger w-100 py-3 quick-btn" onclick="openModal('sale')">
+                        <i class="fas fa-tags d-block mb-1"></i>
+                        <small>Sale</small>
                     </button>
                 </div>
             </div>
@@ -98,6 +123,8 @@
 
             <p class="text-muted small mb-2">Recent Production</p>
             <div id="recent-production" class="mb-3"></div>
+            <p class="text-muted small mb-2">Recent Sales</p>
+            <div id="recent-sales" class="mb-3"></div>
         </div>
     </div>
 
@@ -140,6 +167,19 @@
         </div>
     </div>
 
+    <!-- ===== SALES TAB ===== -->
+    <div id="tab-sales" class="tab-section d-none">
+        <div class="container-fluid p-3">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <p class="text-muted small mb-0">Sales Records</p>
+                <button class="btn btn-success btn-sm" onclick="openModal('sale')">
+                    <i class="fas fa-plus me-1"></i>Add
+                </button>
+            </div>
+            <div id="sales-list"></div>
+        </div>
+    </div>
+
     <!-- ===== REPORTS TAB ===== -->
     <div id="tab-reports" class="tab-section d-none">
         <div class="container-fluid p-3">
@@ -165,6 +205,7 @@
                             <option value="purchases">Purchases Only</option>
                             <option value="production">Production Only</option>
                             <option value="costs">Costs Only</option>
+                            <option value="sales">Sales Only</option>
                         </select>
                     </div>
                     <div class="d-flex gap-2">
@@ -197,15 +238,19 @@
     </div>
     <div class="bottom-nav-item" onclick="switchTab('purchases')" id="nav-purchases">
         <i class="fas fa-shopping-cart"></i>
-        <span>Purchases</span>
+        <span>Buy</span>
     </div>
     <div class="bottom-nav-item" onclick="switchTab('production')" id="nav-production">
         <i class="fas fa-cogs"></i>
-        <span>Production</span>
+        <span>Produce</span>
     </div>
     <div class="bottom-nav-item" onclick="switchTab('costs')" id="nav-costs">
         <i class="fas fa-coins"></i>
         <span>Costs</span>
+    </div>
+    <div class="bottom-nav-item" onclick="switchTab('sales')" id="nav-sales">
+        <i class="fas fa-tags"></i>
+        <span>Sales</span>
     </div>
     <div class="bottom-nav-item" onclick="switchTab('reports')" id="nav-reports">
         <i class="fas fa-chart-bar"></i>
@@ -384,6 +429,82 @@
             <div class="modal-footer">
                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-warning" onclick="saveCost()">
+                    <i class="fas fa-save me-1"></i>Save
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== SALE MODAL ===== -->
+<div class="modal fade" id="saleModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header modal-header-teal">
+                <h5 class="modal-title"><i class="fas fa-tags me-2"></i><span id="saleModalTitle">Add Sale</span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="saleForm" novalidate>
+                    <input type="hidden" id="sale-id">
+                    <div class="mb-3">
+                        <label class="form-label">Date *</label>
+                        <input type="date" class="form-control" id="sale-date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Product Sold *</label>
+                        <input type="text" class="form-control" id="sale-product"
+                            placeholder="e.g., Moringa Powder" required list="product-datalist" autocomplete="off">
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-7">
+                            <label class="form-label">Quantity Sold *</label>
+                            <input type="number" class="form-control" id="sale-qty"
+                                step="0.01" min="0.01" required oninput="calcSaleTotal()">
+                        </div>
+                        <div class="col-5">
+                            <label class="form-label">Unit *</label>
+                            <select class="form-select" id="sale-unit" onchange="calcSaleTotal()">
+                                <option value="grams">Grams (g)</option>
+                                <option value="kg">Kilograms (kg)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-2">
+                        <div class="col-7">
+                            <label class="form-label">Selling Price (₹) *</label>
+                            <input type="number" class="form-control" id="sale-price"
+                                step="0.01" min="0" required oninput="calcSaleTotal()">
+                        </div>
+                        <div class="col-5">
+                            <label class="form-label">Price Per</label>
+                            <select class="form-select" id="sale-pricePer" onchange="calcSaleTotal()">
+                                <option value="total">Total (whole lot)</option>
+                                <option value="100g">Per 100g</option>
+                                <option value="250g">Per 250g</option>
+                                <option value="500g">Per 500g</option>
+                                <option value="kg">Per kg</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Total Revenue (₹)</label>
+                        <input type="number" class="form-control bg-light fw-bold" id="sale-total" readonly tabindex="-1">
+                        <div class="form-text" id="sale-rate-display"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Customer / Buyer <span class="text-muted small">(optional)</span></label>
+                        <input type="text" class="form-control" id="sale-customer" placeholder="Customer name / shop">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Notes <span class="text-muted small">(optional)</span></label>
+                        <textarea class="form-control" id="sale-notes" rows="2" placeholder="Order details..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="saveSale()">
                     <i class="fas fa-save me-1"></i>Save
                 </button>
             </div>
