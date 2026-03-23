@@ -10,6 +10,12 @@ const KEYS = {
     sales:      'dd_sales'
 };
 
+const MACHINE_RATE_PER_HOUR = 9 / 24; // 9 taka per 24 hours = 0.375 ৳/hour
+
+function machineCost(r) {
+    return ((r.machineHours || 0) + (r.machineMinutes || 0) / 60) * MACHINE_RATE_PER_HOUR;
+}
+
 let db = { purchases: [], production: [], costs: [], sales: [] };
 let pendingDelete = { type: null, id: null };
 
@@ -409,17 +415,18 @@ function deleteRecord(type, id) {
 //  RENDER — DASHBOARD
 // ============================================================
 function renderDashboard() {
-    const totalRaw    = db.purchases.reduce((s, r) => s + (r.totalCost || 0), 0);
-    const totalOther  = db.costs.reduce((s, r) => s + (r.amount || 0), 0);
-    const totalInvest = totalRaw + totalOther;
+    const totalRaw     = db.purchases.reduce((s, r) => s + (r.totalCost || 0), 0);
+    const totalOther   = db.costs.reduce((s, r) => s + (r.amount || 0), 0);
+    const totalMachine = db.production.reduce((s, r) => s + machineCost(r), 0);
+    const totalInvest  = totalRaw + totalOther + totalMachine;
     const totalRevenue = db.sales.reduce((s, r) => s + (r.totalRevenue || 0), 0);
-    const profitLoss  = totalRevenue - totalInvest;
-    const totalPowder = db.production.reduce((s, r) => s + (r.powderYieldGrams || 0), 0);
+    const profitLoss   = totalRevenue - totalInvest;
+    const totalPowder  = db.production.reduce((s, r) => s + (r.powderYieldGrams || 0), 0);
 
     set('stat-totalInvestment', '৳' + fNum(totalInvest));
     set('stat-rawCost',         '৳' + fNum(totalRaw));
     set('stat-powderProduced',  fWeight(totalPowder));
-    set('stat-otherCosts',      '৳' + fNum(totalOther));
+    set('stat-otherCosts',      '৳' + fNum(totalOther + totalMachine));
     set('stat-totalRevenue',    '৳' + fNum(totalRevenue));
     set('stat-profitLoss',      (profitLoss >= 0 ? '+' : '') + '৳' + fNum(profitLoss));
 
@@ -509,9 +516,10 @@ function openProductDetail(name) {
 
     const totalBought  = p.reduce((t, r) => t + (r.quantityKg || 0), 0);
     const totalCost    = p.reduce((t, r) => t + (r.totalCost || 0), 0);
+    const totalMachine = prod.reduce((t, r) => t + machineCost(r), 0);
     const totalPowder  = prod.reduce((t, r) => t + (r.powderYieldGrams || 0), 0);
     const totalRevenue = s.reduce((t, r) => t + (r.totalRevenue || 0), 0);
-    const profit       = totalRevenue - totalCost;
+    const profit       = totalRevenue - (totalCost + totalMachine);
 
     document.getElementById('productDetailTitle').textContent = name;
 
@@ -523,6 +531,10 @@ function openProductDetail(name) {
         <div class="col-6"><div class="card border-0 bg-light p-2 text-center">
             <div class="text-muted" style="font-size:0.7rem">Purchase Cost</div>
             <div class="fw-bold text-success small">৳${fNum(totalCost)}</div>
+        </div></div>
+        <div class="col-6"><div class="card border-0 bg-light p-2 text-center">
+            <div class="text-muted" style="font-size:0.7rem">Machine Cost</div>
+            <div class="fw-bold text-danger small">৳${fNum(totalMachine)}</div>
         </div></div>
         <div class="col-6"><div class="card border-0 bg-light p-2 text-center">
             <div class="text-muted" style="font-size:0.7rem">Powder Made</div>
@@ -654,22 +666,28 @@ function renderProduction() {
                     <span class="yield-badge ms-2">${r.yieldPercent}% yield</span>
                 </div>
                 <div class="row g-1 mb-2">
-                    <div class="col-4">
+                    <div class="col-3">
                         <div class="mini-block">
-                            <div class="label">Raw Material</div>
+                            <div class="label">Raw</div>
                             <div class="value">${r.rawMaterialKg} kg</div>
                         </div>
                     </div>
-                    <div class="col-4">
+                    <div class="col-3">
                         <div class="mini-block">
                             <div class="label">Powder</div>
                             <div class="value text-primary">${fWeight(r.powderYieldGrams)}</div>
                         </div>
                     </div>
-                    <div class="col-4">
+                    <div class="col-3">
                         <div class="mini-block">
                             <div class="label">Machine</div>
                             <div class="value">${r.machineHours}h ${r.machineMinutes}m</div>
+                        </div>
+                    </div>
+                    <div class="col-3">
+                        <div class="mini-block">
+                            <div class="label">Run Cost</div>
+                            <div class="value text-danger">৳${fNum(machineCost(r))}</div>
                         </div>
                     </div>
                 </div>
@@ -814,9 +832,10 @@ function updateReportSummary() {
 
     const tPurch   = d.purchases.reduce((s, r) => s + r.totalCost, 0);
     const tCost    = d.costs.reduce((s, r) => s + r.amount, 0);
+    const tMachine = d.production.reduce((s, r) => s + machineCost(r), 0);
     const tPowder  = d.production.reduce((s, r) => s + r.powderYieldGrams, 0);
     const tRevenue = d.sales.reduce((s, r) => s + r.totalRevenue, 0);
-    const tInvest  = tPurch + tCost;
+    const tInvest  = tPurch + tCost + tMachine;
     const profit   = tRevenue - tInvest;
 
     el.innerHTML = `
