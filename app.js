@@ -552,12 +552,15 @@ function openProductDetail(name) {
 
     document.getElementById('productDetailProduction').innerHTML = prod.length === 0 ? noRec : prod.map(r => `
         <div class="card record-card mb-1">
-            <div class="card-body d-flex justify-content-between align-items-center py-2">
-                <div>
+            <div class="card-body py-2">
+                <div class="d-flex justify-content-between align-items-center">
                     <div class="text-muted small">${fDate(r.date)}</div>
-                    <div class="text-muted" style="font-size:0.7rem">${r.rawMaterialKg} kg raw → ${fWeight(r.powderYieldGrams)}</div>
+                    <span class="yield-badge">${r.yieldPercent}% yield</span>
                 </div>
-                <span class="yield-badge">${r.yieldPercent}% yield</span>
+                <div class="d-flex gap-2 mt-1 flex-wrap" style="font-size:0.72rem">
+                    <span class="text-muted">${r.rawMaterialKg} kg raw → ${fWeight(r.powderYieldGrams)}</span>
+                    <span class="badge bg-light text-dark border"><i class="fas fa-clock me-1"></i>${r.machineHours}h ${r.machineMinutes}m</span>
+                </div>
             </div>
         </div>`).join('');
 
