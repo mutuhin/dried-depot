@@ -251,7 +251,7 @@ function updateSaleRateDisplay(qty, unit, total) {
     const qtyGrams = unit === 'kg' ? (qty || 0) * 1000 : (qty || 0);
     if (qtyGrams > 0 && total > 0) {
         const per100g = ((total / qtyGrams) * 100).toFixed(2);
-        el.textContent = '= ₹' + per100g + ' per 100g';
+        el.textContent = '= ৳' + per100g + ' per 100g';
     } else {
         el.textContent = '';
     }
@@ -416,12 +416,12 @@ function renderDashboard() {
     const profitLoss  = totalRevenue - totalInvest;
     const totalPowder = db.production.reduce((s, r) => s + (r.powderYieldGrams || 0), 0);
 
-    set('stat-totalInvestment', '₹' + fNum(totalInvest));
-    set('stat-rawCost',         '₹' + fNum(totalRaw));
+    set('stat-totalInvestment', '৳' + fNum(totalInvest));
+    set('stat-rawCost',         '৳' + fNum(totalRaw));
     set('stat-powderProduced',  fWeight(totalPowder));
-    set('stat-otherCosts',      '₹' + fNum(totalOther));
-    set('stat-totalRevenue',    '₹' + fNum(totalRevenue));
-    set('stat-profitLoss',      (profitLoss >= 0 ? '+' : '') + '₹' + fNum(profitLoss));
+    set('stat-otherCosts',      '৳' + fNum(totalOther));
+    set('stat-totalRevenue',    '৳' + fNum(totalRevenue));
+    set('stat-profitLoss',      (profitLoss >= 0 ? '+' : '') + '৳' + fNum(profitLoss));
 
     const plEl = document.getElementById('stat-profitLoss');
     if (plEl) plEl.className = 'fw-bold fs-6 ' + (profitLoss >= 0 ? 'text-success' : 'text-danger');
@@ -439,8 +439,8 @@ function renderDashboard() {
                         <div class="text-muted" style="font-size:0.72rem">${fDate(r.date)} &bull; ${r.quantityKg}kg</div>
                     </div>
                     <div class="text-end">
-                        <div class="fw-bold text-success small">₹${fNum(r.totalCost)}</div>
-                        <div class="text-muted" style="font-size:0.7rem">₹${r.pricePerKg}/kg</div>
+                        <div class="fw-bold text-success small">৳${fNum(r.totalCost)}</div>
+                        <div class="text-muted" style="font-size:0.7rem">৳${r.pricePerKg}/kg</div>
                     </div>
                 </div>
             </div>`).join('');
@@ -478,12 +478,101 @@ function renderDashboard() {
                             <div class="text-muted" style="font-size:0.72rem">${fDate(r.date)}${r.customer ? ' &bull; ' + esc(r.customer) : ''}</div>
                         </div>
                         <div class="text-end">
-                            <div class="fw-bold text-success small">₹${fNum(r.totalRevenue)}</div>
+                            <div class="fw-bold text-success small">৳${fNum(r.totalRevenue)}</div>
                             <div class="text-muted" style="font-size:0.7rem">${fWeight(r.quantityGrams)}</div>
                         </div>
                     </div>
                 </div>`).join('');
     }
+
+    // Product chips
+    const chipsEl = document.getElementById('product-chips');
+    if (chipsEl) {
+        const names = [...new Set([
+            ...db.purchases.map(r => r.product),
+            ...db.production.map(r => r.product),
+            ...db.sales.map(r => r.product)
+        ])].filter(Boolean).sort();
+        chipsEl.innerHTML = names.length === 0
+            ? '<small class="text-muted">No products yet</small>'
+            : names.map(n => `<button class="btn btn-outline-success btn-sm rounded-pill px-3" onclick="openProductDetail('${esc(n)}')">${esc(n)}</button>`).join('');
+    }
+}
+
+// ============================================================
+//  PRODUCT DETAIL VIEW
+// ============================================================
+function openProductDetail(name) {
+    const p = db.purchases.filter(r => r.product === name).sort((a,b) => b.date.localeCompare(a.date));
+    const prod = db.production.filter(r => r.product === name).sort((a,b) => b.date.localeCompare(a.date));
+    const s = db.sales.filter(r => r.product === name).sort((a,b) => b.date.localeCompare(a.date));
+
+    const totalBought  = p.reduce((t, r) => t + (r.quantityKg || 0), 0);
+    const totalCost    = p.reduce((t, r) => t + (r.totalCost || 0), 0);
+    const totalPowder  = prod.reduce((t, r) => t + (r.powderYieldGrams || 0), 0);
+    const totalRevenue = s.reduce((t, r) => t + (r.totalRevenue || 0), 0);
+    const profit       = totalRevenue - totalCost;
+
+    document.getElementById('productDetailTitle').textContent = name;
+
+    document.getElementById('productDetailStats').innerHTML = `
+        <div class="col-6"><div class="card border-0 bg-light p-2 text-center">
+            <div class="text-muted" style="font-size:0.7rem">Bought</div>
+            <div class="fw-bold text-success small">${totalBought} kg</div>
+        </div></div>
+        <div class="col-6"><div class="card border-0 bg-light p-2 text-center">
+            <div class="text-muted" style="font-size:0.7rem">Purchase Cost</div>
+            <div class="fw-bold text-success small">৳${fNum(totalCost)}</div>
+        </div></div>
+        <div class="col-6"><div class="card border-0 bg-light p-2 text-center">
+            <div class="text-muted" style="font-size:0.7rem">Powder Made</div>
+            <div class="fw-bold text-primary small">${fWeight(totalPowder)}</div>
+        </div></div>
+        <div class="col-6"><div class="card border-0 bg-light p-2 text-center">
+            <div class="text-muted" style="font-size:0.7rem">Revenue</div>
+            <div class="fw-bold text-success small">৳${fNum(totalRevenue)}</div>
+        </div></div>
+        <div class="col-12"><div class="card border-0 p-2 text-center ${profit >= 0 ? 'bg-success bg-opacity-10' : 'bg-danger bg-opacity-10'}">
+            <div class="text-muted" style="font-size:0.7rem">Profit / Loss</div>
+            <div class="fw-bold ${profit >= 0 ? 'text-success' : 'text-danger'}">${profit >= 0 ? '+' : ''}৳${fNum(profit)}</div>
+        </div></div>`;
+
+    const noRec = '<div class="text-muted small ps-1">No records</div>';
+
+    document.getElementById('productDetailPurchases').innerHTML = p.length === 0 ? noRec : p.map(r => `
+        <div class="card record-card mb-1">
+            <div class="card-body d-flex justify-content-between align-items-center py-2">
+                <div class="text-muted small">${fDate(r.date)}${r.supplier ? ' &bull; ' + esc(r.supplier) : ''}</div>
+                <div class="text-end">
+                    <div class="fw-bold text-success small">৳${fNum(r.totalCost)}</div>
+                    <div class="text-muted" style="font-size:0.7rem">${r.quantityKg} kg &bull; ৳${r.pricePerKg}/kg</div>
+                </div>
+            </div>
+        </div>`).join('');
+
+    document.getElementById('productDetailProduction').innerHTML = prod.length === 0 ? noRec : prod.map(r => `
+        <div class="card record-card mb-1">
+            <div class="card-body d-flex justify-content-between align-items-center py-2">
+                <div>
+                    <div class="text-muted small">${fDate(r.date)}</div>
+                    <div class="text-muted" style="font-size:0.7rem">${r.rawMaterialKg} kg raw → ${fWeight(r.powderYieldGrams)}</div>
+                </div>
+                <span class="yield-badge">${r.yieldPercent}% yield</span>
+            </div>
+        </div>`).join('');
+
+    document.getElementById('productDetailSales').innerHTML = s.length === 0 ? noRec : s.map(r => `
+        <div class="card record-card mb-1">
+            <div class="card-body d-flex justify-content-between align-items-center py-2">
+                <div class="text-muted small">${fDate(r.date)}${r.customer ? ' &bull; ' + esc(r.customer) : ''}</div>
+                <div class="text-end">
+                    <div class="fw-bold text-success small">৳${fNum(r.totalRevenue)}</div>
+                    <div class="text-muted" style="font-size:0.7rem">${fWeight(r.quantityGrams)}</div>
+                </div>
+            </div>
+        </div>`).join('');
+
+    new bootstrap.Modal(document.getElementById('productDetailModal')).show();
 }
 
 // ============================================================
@@ -512,13 +601,13 @@ function renderPurchases() {
                         <div class="text-muted small">${fDate(r.date)}${r.supplier ? ' &bull; ' + esc(r.supplier) : ''}</div>
                     </div>
                     <div class="text-end ms-2">
-                        <div class="fw-bold text-success">₹${fNum(r.totalCost)}</div>
+                        <div class="fw-bold text-success">৳${fNum(r.totalCost)}</div>
                     </div>
                 </div>
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
                     <div>
                         <span class="badge bg-light text-dark border me-1">${r.quantityKg} kg</span>
-                        <span class="badge bg-light text-dark border">₹${r.pricePerKg}/kg</span>
+                        <span class="badge bg-light text-dark border">৳${r.pricePerKg}/kg</span>
                         ${r.notes ? '<div class="text-muted small mt-1">' + esc(r.notes) + '</div>' : ''}
                     </div>
                     <div class="d-flex gap-1">
@@ -625,7 +714,7 @@ function renderCosts() {
                         <div class="fw-semibold">${esc(r.itemName)}</div>
                         <div class="text-muted small">${fDate(r.date)}</div>
                     </div>
-                    <div class="fw-bold text-danger ms-2">₹${fNum(r.amount)}</div>
+                    <div class="fw-bold text-danger ms-2">৳${fNum(r.amount)}</div>
                 </div>
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
                     <div>
@@ -671,13 +760,13 @@ function renderSales() {
                         <div class="text-muted small">${fDate(r.date)}${r.customer ? ' &bull; ' + esc(r.customer) : ''}</div>
                     </div>
                     <div class="text-end ms-2">
-                        <div class="fw-bold text-success">₹${fNum(r.totalRevenue)}</div>
+                        <div class="fw-bold text-success">৳${fNum(r.totalRevenue)}</div>
                     </div>
                 </div>
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
                     <div>
                         <span class="badge bg-light text-dark border me-1">${r.quantitySold} ${r.unit}</span>
-                        <span class="badge bg-light text-dark border">₹${((r.totalRevenue / (r.quantityGrams || 1)) * 100).toFixed(0)}/100g</span>
+                        <span class="badge bg-light text-dark border">৳${((r.totalRevenue / (r.quantityGrams || 1)) * 100).toFixed(0)}/100g</span>
                         ${r.notes ? '<div class="text-muted small mt-1">' + esc(r.notes) + '</div>' : ''}
                     </div>
                     <div class="d-flex gap-1">
@@ -732,35 +821,35 @@ function updateReportSummary() {
             <div class="col-6">
                 <div class="bg-light rounded p-2 text-center">
                     <div class="text-muted small">Purchases</div>
-                    <div class="fw-bold text-primary">₹${fNum(tPurch)}</div>
+                    <div class="fw-bold text-primary">৳${fNum(tPurch)}</div>
                     <div class="text-muted" style="font-size:0.72rem">${d.purchases.length} records</div>
                 </div>
             </div>
             <div class="col-6">
                 <div class="bg-light rounded p-2 text-center">
                     <div class="text-muted small">Other Costs</div>
-                    <div class="fw-bold text-danger">₹${fNum(tCost)}</div>
+                    <div class="fw-bold text-danger">৳${fNum(tCost)}</div>
                     <div class="text-muted" style="font-size:0.72rem">${d.costs.length} records</div>
                 </div>
             </div>
             <div class="col-6">
                 <div class="bg-light rounded p-2 text-center">
                     <div class="text-muted small">Total Investment</div>
-                    <div class="fw-bold text-dark">₹${fNum(tInvest)}</div>
+                    <div class="fw-bold text-dark">৳${fNum(tInvest)}</div>
                     <div class="text-muted" style="font-size:0.72rem">buy + costs</div>
                 </div>
             </div>
             <div class="col-6">
                 <div class="bg-light rounded p-2 text-center">
                     <div class="text-muted small">Revenue (Sales)</div>
-                    <div class="fw-bold text-success">₹${fNum(tRevenue)}</div>
+                    <div class="fw-bold text-success">৳${fNum(tRevenue)}</div>
                     <div class="text-muted" style="font-size:0.72rem">${d.sales.length} orders</div>
                 </div>
             </div>
             <div class="col-6">
                 <div class="bg-light rounded p-2 text-center">
                     <div class="text-muted small">Profit / Loss</div>
-                    <div class="fw-bold ${profit >= 0 ? 'text-success' : 'text-danger'}">${profit >= 0 ? '+' : ''}₹${fNum(profit)}</div>
+                    <div class="fw-bold ${profit >= 0 ? 'text-success' : 'text-danger'}">${profit >= 0 ? '+' : ''}৳${fNum(profit)}</div>
                     <div class="text-muted" style="font-size:0.72rem">revenue − invest</div>
                 </div>
             </div>
