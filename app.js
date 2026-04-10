@@ -50,22 +50,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Service worker registration (PWA)
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js').then(reg => {
-            // Check if a new SW is already waiting
-            if (reg.waiting) {
-                showUpdateBanner();
-            }
-            // Listen for new SW updates
-            reg.addEventListener('updatefound', () => {
-                const newSW = reg.installing;
-                newSW.addEventListener('statechange', () => {
-                    if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-                        // New SW is ready & there's already a controller = update available
-                        showUpdateBanner();
-                    }
-                });
-            });
-        }).catch(() => {});
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+        // Show update banner when a new SW takes over (skipWaiting fires → controllerchange)
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            showUpdateBanner();
+        });
     }
 
     // PWA install prompt (Android/Chrome)
@@ -759,7 +748,7 @@ function openProductDetail(name) {
                 </div>
                 <div class="d-flex gap-2 mt-1 flex-wrap" style="font-size:0.72rem">
                     <span class="text-muted">${r.rawMaterialKg} kg raw → ${fWeight(r.powderYieldGrams)}</span>
-                    <span class="badge bg-light text-dark border"><i class="fas fa-clock me-1"></i>${r.machineHours}h ${r.machineMinutes}m</span>
+                    <span class="badge bg-light text-dark border"><i class="fas fa-clock me-1"></i>${r.machineHours || 0}h ${r.machineMinutes || 0}m</span>
                 </div>
             </div>
         </div>`).join('');
@@ -869,7 +858,7 @@ function renderProduction() {
                     <div class="col-3">
                         <div class="mini-block">
                             <div class="label">Machine</div>
-                            <div class="value">${r.machineHours}h ${r.machineMinutes}m</div>
+                            <div class="value">${r.machineHours || 0}h ${r.machineMinutes || 0}m</div>
                         </div>
                     </div>
                     <div class="col-3">
@@ -995,7 +984,8 @@ function renderSales() {
                     </div>
                 </div>
             </div>
-        </div>`).join('');
+        </div>`;
+    }).join('');
 }
 
 // ============================================================
@@ -1100,7 +1090,7 @@ function exportCSV() {
         csv += 'PRODUCTION\n';
         csv += 'Date,Product,Raw Material (kg),Powder Yield (g),Yield %,Machine Hours,Machine Minutes,Notes\n';
         d.production.forEach(r => {
-            csv += `${r.date},"${r.product}",${r.rawMaterialKg},${r.powderYieldGrams},${r.yieldPercent},${r.machineHours},${r.machineMinutes},"${r.notes||''}"\n`;
+            csv += `${r.date},"${r.product}",${r.rawMaterialKg},${r.powderYieldGrams},${r.yieldPercent},${r.machineHours||0},${r.machineMinutes||0},"${r.notes||''}"\n`;
         });
         csv += '\n';
     }
@@ -1207,7 +1197,7 @@ function exportPDF() {
             body: d.production.map(r => [
                 fDate(r.date), r.product, r.rawMaterialKg + ' kg',
                 fWeight(r.powderYieldGrams), r.yieldPercent + '%',
-                r.machineHours + 'h ' + r.machineMinutes + 'm'
+                (r.machineHours || 0) + 'h ' + (r.machineMinutes || 0) + 'm'
             ]),
             theme: 'striped',
             headStyles: { fillColor: [21, 101, 192] },
