@@ -514,6 +514,17 @@ function saveSale() {
     const id = val('sale-id');
     const total = parseFloat(val('sale-total')) || 0;
 
+    // Calculate total amount in grams from all products
+    let totalAmountGrams = 0;
+    saleProducts.forEach(p => {
+        const amountStr = p.amount || '';
+        if (amountStr.includes('kg')) {
+            totalAmountGrams += parseFloat(amountStr) * 1000;
+        } else if (amountStr.includes('gm')) {
+            totalAmountGrams += parseFloat(amountStr);
+        }
+    });
+
     // Build product list summary for display
     const productSummary = saleProducts.map(p => `${p.quantity}${p.quantity === 1 ? 'pc' : 'pcs'} ${p.product}`).join(' + ');
 
@@ -525,7 +536,7 @@ function saveSale() {
         product:      productSummary,
         quantitySold: saleProducts.reduce((sum, p) => sum + p.quantity, 0),
         unit:         'units',
-        quantityGrams: 0,
+        quantityGrams: totalAmountGrams,
         sellingPrice: total / Math.max(saleProducts.length, 1),
         totalRevenue: total,
         customer:     val('sale-customer').trim(),
