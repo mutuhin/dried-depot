@@ -519,17 +519,17 @@
                     <div class="row g-2 mb-2">
                         <div class="col-7">
                             <label class="form-label">Quantity Sold *</label>
+                            <div class="d-flex gap-1 mb-1 flex-wrap">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSaleQty(10)">10g</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSaleQty(20)">20g</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSaleQty(50)">50g</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSaleQty(100)">100g</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSaleQty(200)">200g</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSaleQty(300)">300g</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSaleQty(500)">500g</button>
+                            </div>
                             <input type="number" class="form-control" id="sale-qty"
-                                step="0.01" min="0.01" required oninput="calcSaleTotal()" list="quantity-datalist">
-                            <datalist id="quantity-datalist">
-                                <option value="10">
-                                <option value="20">
-                                <option value="50">
-                                <option value="100">
-                                <option value="200">
-                                <option value="300">
-                                <option value="500">
-                            </datalist>
+                                placeholder="Or enter custom amount" step="0.01" min="0.01" required oninput="calcSaleTotal()">
                         </div>
                         <div class="col-5">
                             <label class="form-label">Unit *</label>

@@ -278,6 +278,11 @@ function updateSaleRateDisplay(qty, unit, total) {
     }
 }
 
+function setSaleQty(amount) {
+    document.getElementById('sale-qty').value = amount;
+    calcSaleTotal();
+}
+
 // ============================================================
 //  SAVE — PURCHASES
 // ============================================================
