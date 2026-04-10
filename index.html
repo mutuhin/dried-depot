@@ -588,35 +588,25 @@
             </div>
             <div class="modal-body">
                 <div class="alert alert-info small mb-3">
-                    <strong>One-time setup (5 minutes):</strong><br>
+                    <strong>One-time setup (2 minutes):</strong><br>
                     1. Go to <strong>console.firebase.google.com</strong><br>
-                    2. Click <strong>Add project</strong> → name it "dried-depot"<br>
-                    3. Click <strong>Build → Realtime Database → Create Database</strong><br>
-                    4. Choose <strong>Start in test mode</strong> → Enable<br>
-                    5. Go to <strong>Project Settings (⚙️) → Your apps → Add app (web &lt;/&gt;)</strong><br>
-                    6. Copy the <strong>firebaseConfig</strong> object and paste below
+                    2. Create a project → <strong>Build → Realtime Database → Create Database</strong><br>
+                    3. Choose <strong>Start in test mode</strong> → Enable<br>
+                    4. Copy the <strong>Database URL</strong> shown at the top (looks like <code>https://xxx.firebaseio.com</code>) and paste below
                 </div>
                 <div class="mb-3">
-                    <label class="form-label fw-semibold">Firebase Config <span class="text-danger">*</span></label>
-                    <textarea class="form-control font-monospace" id="sync-config" rows="7"
-                        placeholder='Paste the firebaseConfig JSON here, e.g.:
-{
-  "apiKey": "AIza...",
-  "authDomain": "...",
-  "databaseURL": "https://....firebaseio.com",
-  "projectId": "...",
-  "storageBucket": "...",
-  "messagingSenderId": "...",
-  "appId": "..."
-}'></textarea>
-                    <div class="form-text">Paste the config object from Firebase console (Project Settings → Your apps)</div>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Business Sync Key <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="sync-key"
-                        placeholder="e.g., depot2024 or your phone number"
+                    <label class="form-label fw-semibold">Database URL <span class="text-danger">*</span></label>
+                    <input type="url" class="form-control font-monospace" id="sync-url"
+                        placeholder="https://your-project-default-rtdb.firebaseio.com"
                         autocomplete="off">
-                    <div class="form-text">A secret word/code. Use the <strong>same key on all your devices</strong>. Anyone with this key can access your data.</div>
+                    <div class="form-text">Copy from Firebase Console → Realtime Database (top of the page)</div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Sync Key <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="sync-key"
+                        placeholder="e.g., myshop123 or your name"
+                        autocomplete="off">
+                    <div class="form-text">Any word you choose. Use the <strong>same key on all your devices</strong> to sync data.</div>
                 </div>
                 <div id="syncTestResult" class="d-none"></div>
             </div>
@@ -683,8 +673,6 @@
     </div>
 </div>
 
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>

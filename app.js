@@ -22,7 +22,7 @@ let pendingDelete = { type: null, id: null };
 // ============================================================
 //  FIREBASE SYNC STATE
 // ============================================================
-let fbDB        = null;
+let fbDbUrl     = '';
 let fbSyncKey   = '';
 let fbConnected = false;
 let deferredInstallPrompt = null;
@@ -1368,45 +1368,53 @@ function objToArr(obj) {
 }
 
 function autoConnectFirebase() {
-    const cfg  = localStorage.getItem('dd_fb_cfg');
-    const key  = localStorage.getItem('dd_fb_key');
-    if (cfg && key) {
-        try { connectFirebase(JSON.parse(cfg), key); } catch(e) {}
+    const url = localStorage.getItem('dd_fb_url') || '';
+    const key = localStorage.getItem('dd_fb_key') || '';
+    // Also support old config format — extract databaseURL from it
+    if (!url) {
+        const oldCfg = localStorage.getItem('dd_fb_cfg');
+        if (oldCfg) {
+            try {
+                const cfg = JSON.parse(oldCfg);
+                if (cfg.databaseURL && key) {
+                    localStorage.setItem('dd_fb_url', cfg.databaseURL);
+                    connectFirebase(cfg.databaseURL, key);
+                    return;
+                }
+            } catch(e) {}
+        }
     }
+    if (url && key) connectFirebase(url, key);
 }
 
-function connectFirebase(config, key) {
-    try {
-        if (!window.firebase) { setSyncStatus('error'); return false; }
-        if (!firebase.apps.length) firebase.initializeApp(config);
-        fbDB      = firebase.database();
-        fbSyncKey = key.replace(/[^a-zA-Z0-9_-]/g, '_');  // sanitize key
-        setSyncStatus('syncing');
-        // Pull once on connect, then push local data up if Firebase is empty
-        pullFromFirebase().then(() => {
-            fbConnected = true;
-            setSyncStatus('synced');
-            renderDashboard();
-            updateProductDatalist();
-        });
-        return true;
-    } catch(e) {
-        setSyncStatus('error');
-        return false;
-    }
+function connectFirebase(dbUrl, key) {
+    fbDbUrl   = dbUrl.replace(/\/$/, '');
+    fbSyncKey = key.replace(/[^a-zA-Z0-9_-]/g, '_');
+    setSyncStatus('syncing');
+    pullFromFirebase().then(() => {
+        fbConnected = true;
+        setSyncStatus('synced');
+        renderDashboard();
+        updateProductDatalist();
+    }).catch(() => setSyncStatus('error'));
 }
 
 async function pushToFirebase() {
-    if (!fbDB || !fbSyncKey) return;
+    if (!fbDbUrl || !fbSyncKey) return;
     setSyncStatus('syncing');
     try {
-        await fbDB.ref('dd/' + fbSyncKey).set({
-            purchases:  arrToObj(db.purchases),
-            production: arrToObj(db.production),
-            costs:      arrToObj(db.costs),
-            sales:      arrToObj(db.sales),
-            _updated:   Date.now()
+        const res = await fetch(`${fbDbUrl}/dd/${fbSyncKey}.json`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                purchases:  arrToObj(db.purchases),
+                production: arrToObj(db.production),
+                costs:      arrToObj(db.costs),
+                sales:      arrToObj(db.sales),
+                _updated:   Date.now()
+            })
         });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         setSyncStatus('synced');
     } catch(e) {
         setSyncStatus('error');
@@ -1415,24 +1423,25 @@ async function pushToFirebase() {
 }
 
 async function pullFromFirebase() {
-    if (!fbDB || !fbSyncKey) return;
+    if (!fbDbUrl || !fbSyncKey) return;
     setSyncStatus('syncing');
     try {
-        const snap = await fbDB.ref('dd/' + fbSyncKey).once('value');
-        const data = snap.val();
-        if (data) {
-            db.purchases  = objToArr(data.purchases);
-            db.production = objToArr(data.production);
-            db.costs      = objToArr(data.costs);
-            db.sales      = objToArr(data.sales);
+        const res  = await fetch(`${fbDbUrl}/dd/${fbSyncKey}.json`);
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const data = await res.json();
+        if (data && typeof data === 'object') {
+            if (data.purchases  !== undefined) db.purchases  = objToArr(data.purchases);
+            if (data.production !== undefined) db.production = objToArr(data.production);
+            if (data.costs      !== undefined) db.costs      = objToArr(data.costs);
+            if (data.sales      !== undefined) db.sales      = objToArr(data.sales);
             saveAllLocal();
         } else {
-            // Firebase is empty — push local data up
             await pushToFirebase();
         }
         setSyncStatus('synced');
     } catch(e) {
         setSyncStatus('error');
+        throw e;
     }
 }
 
@@ -1453,69 +1462,51 @@ function setSyncStatus(status) {
 }
 
 function openSyncSetup() {
-    const cfg = localStorage.getItem('dd_fb_cfg');
-    const key = localStorage.getItem('dd_fb_key');
-    if (cfg) {
-        try { document.getElementById('sync-config').value = JSON.stringify(JSON.parse(cfg), null, 2); } catch(e) {}
-    }
-    if (key) document.getElementById('sync-key').value = key;
+    const url = localStorage.getItem('dd_fb_url') || '';
+    const key = localStorage.getItem('dd_fb_key') || '';
+    document.getElementById('sync-url').value = url;
+    document.getElementById('sync-key').value = key;
     document.getElementById('syncTestResult').classList.add('d-none');
     new bootstrap.Modal(document.getElementById('syncModal')).show();
 }
 
 function saveAndConnectFirebase() {
-    const rawCfg = document.getElementById('sync-config').value.trim();
-    const key    = document.getElementById('sync-key').value.trim();
-    const resEl  = document.getElementById('syncTestResult');
+    const url   = document.getElementById('sync-url').value.trim();
+    const key   = document.getElementById('sync-key').value.trim();
+    const resEl = document.getElementById('syncTestResult');
 
-    if (!rawCfg || !key) {
+    if (!url || !key) {
         resEl.className = 'alert alert-danger small';
         resEl.textContent = 'Both fields are required.';
         resEl.classList.remove('d-none');
         return;
     }
 
-    let config;
-    try {
-        // Extract the {...} block from any surrounding JS code
-        const jsonStr = rawCfg.replace(/^[\s\S]*?(\{[\s\S]*\})[\s\S]*$/, '$1')
-            // Quote unquoted JS object keys
-            .replace(/([{,]\s*)([a-zA-Z_$][a-zA-Z0-9_$]*)\s*:/g, '$1"$2":')
-            // Replace single-quoted values with double-quoted
-            .replace(/:\s*'([^'\\]*(\\.[^'\\]*)*)'/g, ': "$1"')
-            // Remove trailing commas before } or ]
-            .replace(/,(\s*[}\]])/g, '$1');
-        config = JSON.parse(jsonStr);
-    } catch(e) {
-        resEl.className = 'alert alert-danger small';
-        resEl.textContent = 'Could not parse config. Paste only the { ... } block from Firebase console.';
-        resEl.classList.remove('d-none');
-        return;
-    }
-
-    if (!config.databaseURL) {
+    if (!url.includes('firebaseio.com') && !url.includes('firebasedatabase.app')) {
         resEl.className = 'alert alert-warning small';
-        resEl.textContent = 'Missing databaseURL. Make sure you enabled Realtime Database in Firebase and the config includes "databaseURL".';
+        resEl.textContent = 'Enter your Firebase Realtime Database URL (ends in .firebaseio.com or .firebasedatabase.app).';
         resEl.classList.remove('d-none');
         return;
     }
 
-    localStorage.setItem('dd_fb_cfg', JSON.stringify(config));
+    localStorage.setItem('dd_fb_url', url);
     localStorage.setItem('dd_fb_key', key);
 
     resEl.className = 'alert alert-info small';
     resEl.textContent = 'Connecting…';
     resEl.classList.remove('d-none');
 
-    const ok = connectFirebase(config, key);
-    if (ok) {
-        resEl.className = 'alert alert-success small';
-        resEl.textContent = '✓ Connected! Your data will now sync across all devices using the same key.';
-        setTimeout(() => bootstrap.Modal.getInstance(document.getElementById('syncModal'))?.hide(), 1500);
-    } else {
-        resEl.className = 'alert alert-danger small';
-        resEl.textContent = 'Connection failed. Check the config and try again.';
-    }
+    connectFirebase(url, key);
+    setTimeout(() => {
+        if (fbConnected) {
+            resEl.className = 'alert alert-success small';
+            resEl.textContent = '✓ Connected! Your data syncs across all devices with the same key.';
+            setTimeout(() => bootstrap.Modal.getInstance(document.getElementById('syncModal'))?.hide(), 1500);
+        } else {
+            resEl.className = 'alert alert-danger small';
+            resEl.textContent = 'Connection failed. Check your URL and make sure the database is in test mode.';
+        }
+    }, 3000);
 }
 
 // ============================================================
