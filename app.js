@@ -259,11 +259,11 @@ function renderSaleProductsForm() {
     const prodProducts = [...new Set(db.production.map(p => p.product))];
 
     container.innerHTML = saleProducts.map((p, idx) => `
-        <div class="card mb-2 p-2">
+        <div class="card mb-2 p-2" data-product-idx="${idx}">
             <div class="row g-2 mb-2">
                 <div class="col-8">
                     <label class="form-label small mb-1">Product</label>
-                    <select class="form-select form-select-sm" data-idx="${idx}" onchange="updateSaleProductField(${idx})">
+                    <select class="form-select form-select-sm product-name" data-idx="${idx}" onchange="updateSaleProduct(${idx})">
                         <option value="">Select product...</option>
                         ${prodProducts.map(pname => `<option value="${esc(pname)}" ${p.product === pname ? 'selected' : ''}>${esc(pname)}</option>`).join('')}
                     </select>
@@ -277,30 +277,34 @@ function renderSaleProductsForm() {
             <div class="row g-2">
                 <div class="col-6">
                     <label class="form-label small mb-1">Quantity</label>
-                    <input type="number" class="form-control form-control-sm" value="${p.quantity}"
-                        step="0.01" min="0.01" onchange="updateSaleProductField(${idx})">
+                    <input type="number" class="form-control form-control-sm product-qty" data-idx="${idx}"
+                        value="${p.quantity}" step="1" min="1" onchange="updateSaleProduct(${idx})">
                 </div>
                 <div class="col-6">
                     <label class="form-label small mb-1">Price (৳)</label>
-                    <input type="number" class="form-control form-control-sm" value="${p.price}"
-                        step="0.01" min="0" onchange="updateSaleProductField(${idx})">
+                    <input type="number" class="form-control form-control-sm product-price" data-idx="${idx}"
+                        value="${p.price}" step="0.01" min="0" onchange="updateSaleProduct(${idx})">
                 </div>
             </div>
             <div class="text-end mt-2">
-                <small class="text-muted">Subtotal: <strong>৳${(p.quantity * p.price).toFixed(2)}</strong></small>
+                <small class="text-muted">Subtotal: <strong class="product-subtotal">৳${(p.quantity * p.price).toFixed(2)}</strong></small>
             </div>
         </div>
     `).join('');
 }
 
-function updateSaleProductField(idx) {
-    const form = document.getElementById('saleForm');
-    const inputs = form.querySelectorAll('.card');
-    const card = inputs[idx];
+function updateSaleProduct(idx) {
+    const card = document.querySelector(`[data-product-idx="${idx}"]`);
+    if (!card) return;
 
-    saleProducts[idx].product = card.querySelector('select').value;
-    saleProducts[idx].quantity = parseFloat(card.querySelector('input[type="number"]:nth-of-type(1)').value) || 0;
-    saleProducts[idx].price = parseFloat(card.querySelector('input[type="number"]:nth-of-type(2)').value) || 0;
+    const product = card.querySelector('.product-name').value;
+    const quantity = parseFloat(card.querySelector('.product-qty').value) || 0;
+    const price = parseFloat(card.querySelector('.product-price').value) || 0;
+
+    saleProducts[idx] = { product, quantity, price };
+
+    // Update subtotal display
+    card.querySelector('.product-subtotal').textContent = '৳' + (quantity * price).toFixed(2);
 
     calcSaleTotal();
 }
@@ -317,9 +321,15 @@ function removeSaleProduct(idx) {
 }
 
 function calcSaleTotal() {
-    const total = saleProducts.reduce((sum, p) => sum + (p.quantity * p.price), 0);
-    set('sale-total', total);
-    set('sale-total-display', total.toFixed(2));
+    const total = saleProducts.reduce((sum, p) => {
+        const quantity = parseFloat(p.quantity) || 0;
+        const price = parseFloat(p.price) || 0;
+        return sum + (quantity * price);
+    }, 0);
+
+    set('sale-total', total.toFixed(2));
+    const displayEl = document.getElementById('sale-total-display');
+    if (displayEl) displayEl.textContent = total.toFixed(2);
 }
 
 // ============================================================
