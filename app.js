@@ -44,7 +44,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Service worker registration (PWA)
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js').catch(() => {});
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+            // Auto-update: if a new SW is waiting, reload the page
+            if (reg.waiting) {
+                window.location.reload();
+            }
+            // Listen for updates in the future
+            reg.addEventListener('updatefound', () => {
+                const newSW = reg.installing;
+                newSW.addEventListener('statechange', () => {
+                    if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+                        // New SW is ready & page is controlled by old SW — reload
+                        window.location.reload();
+                    }
+                });
+            });
+        }).catch(() => {});
     }
 
     // PWA install prompt (Android/Chrome)
