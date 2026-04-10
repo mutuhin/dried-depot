@@ -286,6 +286,20 @@ function renderSaleProductsForm() {
                         value="${p.price}" step="0.01" min="0" onchange="updateSaleProduct(${idx})">
                 </div>
             </div>
+            <div class="mb-2">
+                <label class="form-label small mb-1">Amount</label>
+                <div class="d-flex gap-1 mb-1 flex-wrap">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setAmount(${idx}, '10gm')">10gm</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setAmount(${idx}, '20gm')">20gm</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setAmount(${idx}, '50gm')">50gm</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setAmount(${idx}, '100gm')">100gm</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setAmount(${idx}, '200gm')">200gm</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setAmount(${idx}, '500gm')">500gm</button>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setAmount(${idx}, '1kg')">1kg</button>
+                </div>
+                <input type="text" class="form-control form-control-sm product-amount" data-idx="${idx}"
+                    value="${p.amount || ''}" placeholder="e.g., 250gm, 1.5kg" onchange="updateSaleProduct(${idx})">
+            </div>
             <div class="text-end mt-2">
                 <small class="text-muted">Subtotal: <strong class="product-subtotal">৳${(p.quantity * p.price).toFixed(2)}</strong></small>
             </div>
@@ -300,13 +314,22 @@ function updateSaleProduct(idx) {
     const product = card.querySelector('.product-name').value;
     const quantity = parseFloat(card.querySelector('.product-qty').value) || 0;
     const price = parseFloat(card.querySelector('.product-price').value) || 0;
+    const amount = card.querySelector('.product-amount').value;
 
-    saleProducts[idx] = { product, quantity, price };
+    saleProducts[idx] = { product, quantity, price, amount };
 
     // Update subtotal display
     card.querySelector('.product-subtotal').textContent = '৳' + (quantity * price).toFixed(2);
 
     calcSaleTotal();
+}
+
+function setAmount(idx, amount) {
+    const card = document.querySelector(`[data-product-idx="${idx}"]`);
+    if (card) {
+        card.querySelector('.product-amount').value = amount;
+        updateSaleProduct(idx);
+    }
 }
 
 function addSaleProduct() {
