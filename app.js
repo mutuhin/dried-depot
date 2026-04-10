@@ -1288,7 +1288,12 @@ function val(id) {
 }
 function set(id, v) {
     const el = document.getElementById(id);
-    if (el) el.value = v;
+    if (!el) return;
+    if (el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') {
+        el.value = v;
+    } else {
+        el.textContent = v;
+    }
 }
 function upsert(arr, id, record) {
     if (id) {
