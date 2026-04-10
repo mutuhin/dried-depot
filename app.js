@@ -364,6 +364,46 @@ function calcSaleTotal() {
     if (displayEl) displayEl.textContent = total.toFixed(2);
 }
 
+// Calculate total powder produced (in grams)
+function getTotalPowderProduced() {
+    return db.production.reduce((sum, r) => sum + (r.powderYieldGrams || 0), 0);
+}
+
+// Calculate total powder sold by product (in grams)
+function getTotalPowderSoldByProduct(productName) {
+    return db.sales.reduce((sum, sale) => {
+        if (Array.isArray(sale.products)) {
+            return sum + sale.products
+                .filter(p => p.product === productName)
+                .reduce((psum, p) => {
+                    // Parse amount string (e.g., "100gm", "1kg", "250gm")
+                    const amountStr = p.amount || '';
+                    if (amountStr.includes('kg')) {
+                        return psum + (parseFloat(amountStr) * 1000);
+                    } else if (amountStr.includes('gm')) {
+                        return psum + parseFloat(amountStr);
+                    }
+                    return psum;
+                }, 0);
+        }
+        return sum;
+    }, 0);
+}
+
+// Calculate powder produced by product (in grams)
+function getPowderProducedByProduct(productName) {
+    return db.production
+        .filter(r => r.product === productName)
+        .reduce((sum, r) => sum + (r.powderYieldGrams || 0), 0);
+}
+
+// Calculate remaining powder by product
+function getRemainingPowder(productName) {
+    const produced = getPowderProducedByProduct(productName);
+    const sold = getTotalPowderSoldByProduct(productName);
+    return Math.max(0, produced - sold);
+}
+
 // ============================================================
 //  SAVE — PURCHASES
 // ============================================================
@@ -533,11 +573,31 @@ function renderDashboard() {
     const totalInvest  = totalRaw + totalOther + totalMachine;
     const totalRevenue = db.sales.reduce((s, r) => s + (r.totalRevenue || 0), 0);
     const profitLoss   = totalRevenue - totalInvest;
-    const totalPowder  = db.production.reduce((s, r) => s + (r.powderYieldGrams || 0), 0);
+    const totalPowder  = getTotalPowderProduced();
+
+    // Calculate total powder sold (in grams)
+    const totalPowderSold = db.sales.reduce((sum, sale) => {
+        if (Array.isArray(sale.products)) {
+            return sum + sale.products.reduce((psum, p) => {
+                const amountStr = p.amount || '';
+                if (amountStr.includes('kg')) {
+                    return psum + (parseFloat(amountStr) * 1000);
+                } else if (amountStr.includes('gm')) {
+                    return psum + parseFloat(amountStr);
+                }
+                return psum;
+            }, 0);
+        }
+        return sum;
+    }, 0);
+
+    const remainingPowder = Math.max(0, totalPowder - totalPowderSold);
 
     set('stat-totalInvestment', '৳' + fNum(totalInvest));
     set('stat-rawCost',         '৳' + fNum(totalRaw));
     set('stat-powderProduced',  fWeight(totalPowder));
+    set('stat-powderSold',      fWeight(totalPowderSold));
+    set('stat-remainingPowder', fWeight(remainingPowder));
     set('stat-otherCosts',      '৳' + fNum(totalOther + totalMachine));
     set('stat-totalRevenue',    '৳' + fNum(totalRevenue));
     set('stat-profitLoss',      (profitLoss >= 0 ? '+' : '') + '৳' + fNum(profitLoss));
