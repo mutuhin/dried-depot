@@ -554,20 +554,19 @@
                         </div>
                     </div>
                     <div class="row g-2 mb-2">
-                        <div class="col-7">
-                            <label class="form-label">Selling Price (₹) *</label>
+                        <div class="col-12">
+                            <label class="form-label">Selling Price Per *</label>
+                            <div class="d-flex gap-1 mb-1 flex-wrap">
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSalePrice(10)">10</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSalePrice(20)">20</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSalePrice(50)">50</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSalePrice(100)">100</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSalePrice(200)">200</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSalePrice(300)">300</button>
+                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSalePrice(500)">500</button>
+                            </div>
                             <input type="number" class="form-control" id="sale-price"
-                                step="0.01" min="0" required oninput="calcSaleTotal()">
-                        </div>
-                        <div class="col-5">
-                            <label class="form-label">Price Per</label>
-                            <select class="form-select" id="sale-pricePer" onchange="calcSaleTotal()">
-                                <option value="total">Total (whole lot)</option>
-                                <option value="100g">Per 100g</option>
-                                <option value="250g">Per 250g</option>
-                                <option value="500g">Per 500g</option>
-                                <option value="kg">Per kg</option>
-                            </select>
+                                placeholder="Or enter custom price per unit" step="0.01" min="0" required oninput="calcSaleTotal()">
                         </div>
                     </div>
                     <div class="mb-3">

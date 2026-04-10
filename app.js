@@ -218,7 +218,6 @@ function populateForm(type, id) {
         set('sale-qty', r.quantitySold);
         set('sale-unit', r.unit);
         set('sale-price', r.sellingPrice);
-        set('sale-pricePer', r.pricePer);
         set('sale-total', r.totalRevenue);
         set('sale-customer', r.customer || '');
         set('sale-notes', r.notes || '');
@@ -249,18 +248,12 @@ function calcSaleTotal() {
     const qty      = parseFloat(val('sale-qty'))   || 0;
     const price    = parseFloat(val('sale-price')) || 0;
     const unit     = val('sale-unit');
-    const pricePer = val('sale-pricePer');
 
-    // Convert qty to grams
+    // Convert qty to grams for display
     const qtyGrams = unit === 'kg' ? qty * 1000 : qty;
 
-    let total = 0;
-    if (pricePer === 'total') {
-        total = price;
-    } else {
-        const perGrams = pricePer === '100g' ? 100 : pricePer === '250g' ? 250 : pricePer === '500g' ? 500 : 1000;
-        total = (qtyGrams / perGrams) * price;
-    }
+    // Price entered is the total revenue
+    const total = price;
 
     set('sale-total', total > 0 ? total.toFixed(2) : '');
     updateSaleRateDisplay(qty, unit, total);
@@ -280,6 +273,11 @@ function updateSaleRateDisplay(qty, unit, total) {
 
 function setSaleQty(amount) {
     document.getElementById('sale-qty').value = amount;
+    calcSaleTotal();
+}
+
+function setSalePrice(amount) {
+    document.getElementById('sale-price').value = amount;
     calcSaleTotal();
 }
 
@@ -382,7 +380,6 @@ function saveSale() {
     const qty      = parseFloat(val('sale-qty'));
     const unit     = val('sale-unit');
     const price    = parseFloat(val('sale-price'));
-    const pricePer = val('sale-pricePer');
     const total    = parseFloat(val('sale-total')) || 0;
     const qtyGrams = unit === 'kg' ? qty * 1000 : qty;
 
@@ -394,7 +391,6 @@ function saveSale() {
         unit:         unit,
         quantityGrams: qtyGrams,
         sellingPrice: price,
-        pricePer:     pricePer,
         totalRevenue: total,
         customer:     val('sale-customer').trim(),
         notes:        val('sale-notes').trim(),
