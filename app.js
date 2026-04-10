@@ -45,17 +45,17 @@ document.addEventListener('DOMContentLoaded', () => {
     // Service worker registration (PWA)
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js').then(reg => {
-            // Auto-update: if a new SW is waiting, reload the page
+            // Check if a new SW is already waiting
             if (reg.waiting) {
-                window.location.reload();
+                showUpdateBanner();
             }
-            // Listen for updates in the future
+            // Listen for new SW updates
             reg.addEventListener('updatefound', () => {
                 const newSW = reg.installing;
                 newSW.addEventListener('statechange', () => {
                     if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-                        // New SW is ready & page is controlled by old SW — reload
-                        window.location.reload();
+                        // New SW is ready & there's already a controller = update available
+                        showUpdateBanner();
                     }
                 });
             });
@@ -1354,6 +1354,20 @@ function installPWA() {
 function dismissInstall() {
     const b = document.getElementById('installBanner');
     if (b) b.classList.add('d-none');
+}
+
+function showUpdateBanner() {
+    const b = document.getElementById('updateBanner');
+    if (b) b.classList.remove('d-none');
+}
+
+function dismissUpdate() {
+    const b = document.getElementById('updateBanner');
+    if (b) b.classList.add('d-none');
+}
+
+function applyUpdate() {
+    window.location.reload();
 }
 
 // ============================================================
