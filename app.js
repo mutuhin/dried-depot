@@ -1043,8 +1043,8 @@ function updateReportSummary() {
             </div>
             <div class="col-6">
                 <div class="bg-light rounded p-2 text-center">
-                    <div class="text-muted small">Other Costs</div>
-                    <div class="fw-bold text-danger">৳${fNum(tCost)}</div>
+                    <div class="text-muted small">Other Costs + Machine</div>
+                    <div class="fw-bold text-danger">৳${fNum(tCost + tMachine)}</div>
                     <div class="text-muted" style="font-size:0.72rem">${d.costs.length} records</div>
                 </div>
             </div>
@@ -1057,7 +1057,7 @@ function updateReportSummary() {
             </div>
             <div class="col-6">
                 <div class="bg-light rounded p-2 text-center">
-                    <div class="text-muted small">Revenue (Sales)</div>
+                    <div class="text-muted small">Total Sell</div>
                     <div class="fw-bold text-success">৳${fNum(tRevenue)}</div>
                     <div class="text-muted" style="font-size:0.72rem">${d.sales.length} orders</div>
                 </div>
@@ -1152,9 +1152,10 @@ function exportPDF() {
     let y = 36;
 
     // Summary table
-    const tPurch  = d.purchases.reduce((s, r) => s + r.totalCost, 0);
-    const tCost   = d.costs.reduce((s, r) => s + r.amount, 0);
-    const tPowder = d.production.reduce((s, r) => s + r.powderYieldGrams, 0);
+    const tPurch   = d.purchases.reduce((s, r) => s + r.totalCost, 0);
+    const tCost    = d.costs.reduce((s, r) => s + r.amount, 0);
+    const tMachPDF = d.production.reduce((s, r) => s + machineCost(r), 0);
+    const tPowder  = d.production.reduce((s, r) => s + r.powderYieldGrams, 0);
 
     doc.setFontSize(11);
     doc.setTextColor(0, 0, 0);
@@ -1164,11 +1165,12 @@ function exportPDF() {
         startY: y,
         head: [['Metric', 'Value']],
         body: [
-            ['Total Raw Material Cost', 'Rs ' + fNum(tPurch)],
-            ['Total Other Costs',       'Rs ' + fNum(tCost)],
-            ['Total Investment',        'Rs ' + fNum(tPurch + tCost)],
-            ['Total Powder Produced',   fWeight(tPowder)],
-            ['Production Runs',         String(d.production.length)],
+            ['Total Raw Material Cost',    '৳' + fNum(tPurch)],
+            ['Machine Run Cost',           '৳' + fNum(tMachPDF)],
+            ['Other Costs',                '৳' + fNum(tCost)],
+            ['Total Investment',           '৳' + fNum(tPurch + tCost + tMachPDF)],
+            ['Total Powder Produced',      fWeight(tPowder)],
+            ['Production Runs',            String(d.production.length)],
         ],
         theme: 'striped',
         headStyles: { fillColor: [45, 106, 79] },
