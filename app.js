@@ -51,21 +51,18 @@ document.addEventListener('DOMContentLoaded', () => {
     // Service worker registration (PWA)
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js').then(reg => {
-            // Check if a new SW is already waiting
-            if (reg.waiting) {
-                showUpdateBanner();
-            }
-            // Listen for new SW updates
+            if (reg.waiting) showUpdateBanner();
             reg.addEventListener('updatefound', () => {
                 const newSW = reg.installing;
                 newSW.addEventListener('statechange', () => {
                     if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-                        // New SW is ready & there's already a controller = update available
                         showUpdateBanner();
                     }
                 });
             });
         }).catch(() => {});
+        // Fires when new SW takes over via skipWaiting
+        navigator.serviceWorker.addEventListener('controllerchange', showUpdateBanner);
     }
 
     // PWA install prompt (Android/Chrome)
@@ -1076,7 +1073,7 @@ function updateReportSummary() {
             </div>
             <div class="col-6">
                 <div class="bg-light rounded p-2 text-center">
-                    <div class="text-muted small">Powder Made</div>
+                    <div class="text-muted small">Powder Produced</div>
                     <div class="fw-bold text-warning">${fWeight(tPowder)}</div>
                     <div class="text-muted" style="font-size:0.72rem">${d.production.length} runs</div>
                 </div>
