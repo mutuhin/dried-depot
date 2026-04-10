@@ -378,10 +378,11 @@ function getTotalPowderSoldByProduct(productName) {
                 .reduce((psum, p) => {
                     // Parse amount string (e.g., "100gm", "1kg", "250gm")
                     const amountStr = p.amount || '';
+                    const qty = p.quantity || 1;
                     if (amountStr.includes('kg')) {
-                        return psum + (parseFloat(amountStr) * 1000);
+                        return psum + (parseFloat(amountStr) * 1000 * qty);
                     } else if (amountStr.includes('gm')) {
-                        return psum + parseFloat(amountStr);
+                        return psum + (parseFloat(amountStr) * qty);
                     }
                     return psum;
                 }, 0);
@@ -518,10 +519,11 @@ function saveSale() {
     let totalAmountGrams = 0;
     saleProducts.forEach(p => {
         const amountStr = p.amount || '';
+        const qty = p.quantity || 1;
         if (amountStr.includes('kg')) {
-            totalAmountGrams += parseFloat(amountStr) * 1000;
+            totalAmountGrams += parseFloat(amountStr) * 1000 * qty;
         } else if (amountStr.includes('gm')) {
-            totalAmountGrams += parseFloat(amountStr);
+            totalAmountGrams += parseFloat(amountStr) * qty;
         }
     });
 
@@ -592,10 +594,11 @@ function renderDashboard() {
         if (Array.isArray(sale.products)) {
             return sum + sale.products.reduce((psum, p) => {
                 const amountStr = p.amount || '';
+                const qty = p.quantity || 1;
                 if (amountStr.includes('kg')) {
-                    return psum + (parseFloat(amountStr) * 1000);
+                    return psum + (parseFloat(amountStr) * 1000 * qty);
                 } else if (amountStr.includes('gm')) {
-                    return psum + parseFloat(amountStr);
+                    return psum + (parseFloat(amountStr) * qty);
                 }
                 return psum;
             }, 0);
