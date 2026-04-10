@@ -3,7 +3,7 @@
 //  Enables PWA install on Android & iOS + offline support
 // ============================================================
 
-const CACHE = 'dried-depot-v22';
+const CACHE = 'dried-depot-v23';
 const FILES = ['./style.css', './app.js', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', e => {
@@ -15,9 +15,13 @@ self.addEventListener('activate', e => {
     e.waitUntil(
         caches.keys().then(keys =>
             Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-        )
+        ).then(() => self.clients.claim()).then(() => {
+            // Tell all open tabs an update just happened
+            return self.clients.matchAll({ type: 'window' }).then(clients => {
+                clients.forEach(c => c.postMessage({ type: 'SW_UPDATED' }));
+            });
+        })
     );
-    self.clients.claim();
 });
 
 self.addEventListener('fetch', e => {

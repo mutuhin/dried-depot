@@ -50,19 +50,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Service worker registration (PWA)
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js').then(reg => {
-            if (reg.waiting) showUpdateBanner();
-            reg.addEventListener('updatefound', () => {
-                const newSW = reg.installing;
-                newSW.addEventListener('statechange', () => {
-                    if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-                        showUpdateBanner();
-                    }
-                });
-            });
-        }).catch(() => {});
-        // Fires when new SW takes over via skipWaiting
-        navigator.serviceWorker.addEventListener('controllerchange', showUpdateBanner);
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+        // SW posts SW_UPDATED message when it activates — most reliable across all scenarios
+        navigator.serviceWorker.addEventListener('message', e => {
+            if (e.data && e.data.type === 'SW_UPDATED') showUpdateBanner();
+        });
+        // Backup: fires when controller changes (skipWaiting)
+        let hadController = !!navigator.serviceWorker.controller;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (hadController) showUpdateBanner();
+            hadController = true;
+        });
     }
 
     // PWA install prompt (Android/Chrome)
