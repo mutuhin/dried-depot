@@ -526,53 +526,18 @@
                         <input type="date" class="form-control" id="sale-date" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Product Sold *</label>
-                        <input type="text" class="form-control" id="sale-product"
-                            placeholder="e.g., Moringa Powder" required list="product-datalist" autocomplete="off">
+                        <label class="form-label">Products Sold *</label>
+                        <div id="saleProductsContainer"></div>
+                        <button type="button" class="btn btn-sm btn-outline-primary mt-2" onclick="addSaleProduct()">
+                            <i class="fas fa-plus me-1"></i>Add Product
+                        </button>
                     </div>
-                    <div class="row g-2 mb-2">
-                        <div class="col-7">
-                            <label class="form-label">Quantity Sold *</label>
-                            <div class="d-flex gap-1 mb-1 flex-wrap">
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSaleQty(10)">10g</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSaleQty(20)">20g</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSaleQty(50)">50g</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSaleQty(100)">100g</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSaleQty(200)">200g</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSaleQty(300)">300g</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSaleQty(500)">500g</button>
-                            </div>
-                            <input type="number" class="form-control" id="sale-qty"
-                                placeholder="Or enter custom amount" step="0.01" min="0.01" required oninput="calcSaleTotal()">
+                    <div class="mb-3 p-3 bg-light rounded">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-semibold">Total Revenue (₹)</span>
+                            <span class="fs-5 fw-bold text-success" id="sale-total-display">0</span>
                         </div>
-                        <div class="col-5">
-                            <label class="form-label">Unit *</label>
-                            <select class="form-select" id="sale-unit" onchange="calcSaleTotal()">
-                                <option value="grams">Grams (g)</option>
-                                <option value="kg">Kilograms (kg)</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="row g-2 mb-2">
-                        <div class="col-12">
-                            <label class="form-label">Selling Price Per *</label>
-                            <div class="d-flex gap-1 mb-1 flex-wrap">
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSalePrice(10)">10</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSalePrice(20)">20</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSalePrice(50)">50</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSalePrice(100)">100</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSalePrice(200)">200</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSalePrice(300)">300</button>
-                                <button type="button" class="btn btn-outline-secondary btn-sm" onclick="setSalePrice(500)">500</button>
-                            </div>
-                            <input type="number" class="form-control" id="sale-price"
-                                placeholder="Or enter custom price per unit" step="0.01" min="0" required oninput="calcSaleTotal()">
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Total Revenue (₹)</label>
-                        <input type="number" class="form-control bg-light fw-bold" id="sale-total" readonly tabindex="-1">
-                        <div class="form-text" id="sale-rate-display"></div>
+                        <input type="hidden" id="sale-total">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Customer / Buyer <span class="text-muted small">(optional)</span></label>

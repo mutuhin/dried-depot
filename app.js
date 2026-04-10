@@ -211,17 +211,22 @@ function populateForm(type, id) {
     }
     if (type === 'sale') {
         const r = db.sales.find(x => x.id === id);
-        if (!r) return;
-        set('sale-id', r.id);
-        set('sale-date', r.date);
-        set('sale-product', r.product);
-        set('sale-qty', r.quantitySold);
-        set('sale-unit', r.unit);
-        set('sale-price', r.sellingPrice);
-        set('sale-total', r.totalRevenue);
-        set('sale-customer', r.customer || '');
-        set('sale-notes', r.notes || '');
-        updateSaleRateDisplay(r.quantitySold, r.unit, r.totalRevenue);
+        set('sale-id', r ? r.id : '');
+        set('sale-date', r ? r.date : new Date().toISOString().split('T')[0]);
+        set('sale-customer', r ? (r.customer || '') : '');
+        set('sale-notes', r ? (r.notes || '') : '');
+
+        // Initialize products list
+        if (r && r.products && Array.isArray(r.products)) {
+            saleProducts = r.products.map(p => ({ ...p }));
+        } else if (r) {
+            // Convert old single-product format to new format
+            saleProducts = [{ product: r.product || '', quantity: r.quantitySold || 0, price: r.sellingPrice || 0 }];
+        } else {
+            saleProducts = [];
+        }
+        renderSaleProductsForm();
+        calcSaleTotal();
     }
 }
 
@@ -244,41 +249,77 @@ function calcYield() {
     }
 }
 
+let saleProducts = []; // List of products being added to current sale
+
+function renderSaleProductsForm() {
+    const container = document.getElementById('saleProductsContainer');
+    if (!container) return;
+
+    // Get list of products from production (with their names)
+    const prodProducts = [...new Set(db.production.map(p => p.product))];
+
+    container.innerHTML = saleProducts.map((p, idx) => `
+        <div class="card mb-2 p-2">
+            <div class="row g-2 mb-2">
+                <div class="col-8">
+                    <label class="form-label small mb-1">Product</label>
+                    <select class="form-select form-select-sm" data-idx="${idx}" onchange="updateSaleProductField(${idx})">
+                        <option value="">Select product...</option>
+                        ${prodProducts.map(pname => `<option value="${esc(pname)}" ${p.product === pname ? 'selected' : ''}>${esc(pname)}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="col-4">
+                    <button type="button" class="btn btn-sm btn-outline-danger mt-4" onclick="removeSaleProduct(${idx})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="row g-2">
+                <div class="col-6">
+                    <label class="form-label small mb-1">Quantity</label>
+                    <input type="number" class="form-control form-control-sm" value="${p.quantity}"
+                        step="0.01" min="0.01" onchange="updateSaleProductField(${idx})">
+                </div>
+                <div class="col-6">
+                    <label class="form-label small mb-1">Price (৳)</label>
+                    <input type="number" class="form-control form-control-sm" value="${p.price}"
+                        step="0.01" min="0" onchange="updateSaleProductField(${idx})">
+                </div>
+            </div>
+            <div class="text-end mt-2">
+                <small class="text-muted">Subtotal: <strong>৳${(p.quantity * p.price).toFixed(2)}</strong></small>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateSaleProductField(idx) {
+    const form = document.getElementById('saleForm');
+    const inputs = form.querySelectorAll('.card');
+    const card = inputs[idx];
+
+    saleProducts[idx].product = card.querySelector('select').value;
+    saleProducts[idx].quantity = parseFloat(card.querySelector('input[type="number"]:nth-of-type(1)').value) || 0;
+    saleProducts[idx].price = parseFloat(card.querySelector('input[type="number"]:nth-of-type(2)').value) || 0;
+
+    calcSaleTotal();
+}
+
+function addSaleProduct() {
+    saleProducts.push({ product: '', quantity: 1, price: 0 });
+    renderSaleProductsForm();
+}
+
+function removeSaleProduct(idx) {
+    saleProducts.splice(idx, 1);
+    renderSaleProductsForm();
+    calcSaleTotal();
+}
+
 function calcSaleTotal() {
-    const qty      = parseFloat(val('sale-qty'))   || 0;
-    const price    = parseFloat(val('sale-price')) || 0;
-    const unit     = val('sale-unit');
-
-    // Convert qty to grams for display
-    const qtyGrams = unit === 'kg' ? qty * 1000 : qty;
-
-    // Price entered is the total revenue
-    const total = price;
-
-    set('sale-total', total > 0 ? total.toFixed(2) : '');
-    updateSaleRateDisplay(qty, unit, total);
-}
-
-function updateSaleRateDisplay(qty, unit, total) {
-    const el = document.getElementById('sale-rate-display');
-    if (!el) return;
-    const qtyGrams = unit === 'kg' ? (qty || 0) * 1000 : (qty || 0);
-    if (qtyGrams > 0 && total > 0) {
-        const per100g = ((total / qtyGrams) * 100).toFixed(2);
-        el.textContent = '= ৳' + per100g + ' per 100g';
-    } else {
-        el.textContent = '';
-    }
-}
-
-function setSaleQty(amount) {
-    document.getElementById('sale-qty').value = amount;
-    calcSaleTotal();
-}
-
-function setSalePrice(amount) {
-    document.getElementById('sale-price').value = amount;
-    calcSaleTotal();
+    const total = saleProducts.reduce((sum, p) => sum + (p.quantity * p.price), 0);
+    set('sale-total', total);
+    set('sale-total-display', total.toFixed(2));
 }
 
 // ============================================================
@@ -376,21 +417,34 @@ function saveSale() {
     const form = document.getElementById('saleForm');
     if (!form.checkValidity()) { form.reportValidity(); return; }
 
-    const id       = val('sale-id');
-    const qty      = parseFloat(val('sale-qty'));
-    const unit     = val('sale-unit');
-    const price    = parseFloat(val('sale-price'));
-    const total    = parseFloat(val('sale-total')) || 0;
-    const qtyGrams = unit === 'kg' ? qty * 1000 : qty;
+    // Validate that at least one product is added
+    if (!saleProducts || saleProducts.length === 0) {
+        toast('Please add at least one product!', 'danger');
+        return;
+    }
+
+    // Validate that all products have values
+    if (saleProducts.some(p => !p.product || p.quantity <= 0 || p.price < 0)) {
+        toast('Please fill in all product details!', 'danger');
+        return;
+    }
+
+    const id = val('sale-id');
+    const total = parseFloat(val('sale-total')) || 0;
+
+    // Build product list summary for display
+    const productSummary = saleProducts.map(p => `${p.quantity}${p.quantity === 1 ? 'pc' : 'pcs'} ${p.product}`).join(' + ');
 
     const record = {
         id:           id || uid(),
         date:         val('sale-date'),
-        product:      val('sale-product').trim(),
-        quantitySold: qty,
-        unit:         unit,
-        quantityGrams: qtyGrams,
-        sellingPrice: price,
+        products:     saleProducts.map(p => ({ ...p })), // New format: products array
+        // Legacy fields for compatibility
+        product:      productSummary,
+        quantitySold: saleProducts.reduce((sum, p) => sum + p.quantity, 0),
+        unit:         'units',
+        quantityGrams: 0,
+        sellingPrice: total / Math.max(saleProducts.length, 1),
         totalRevenue: total,
         customer:     val('sale-customer').trim(),
         notes:        val('sale-notes').trim(),
