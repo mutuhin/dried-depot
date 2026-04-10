@@ -50,11 +50,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Service worker registration (PWA)
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('./sw.js').catch(() => {});
-        // Show update banner when a new SW takes over (skipWaiting fires → controllerchange)
-        navigator.serviceWorker.addEventListener('controllerchange', () => {
-            showUpdateBanner();
-        });
+        navigator.serviceWorker.register('./sw.js').then(reg => {
+            // Check if a new SW is already waiting
+            if (reg.waiting) {
+                showUpdateBanner();
+            }
+            // Listen for new SW updates
+            reg.addEventListener('updatefound', () => {
+                const newSW = reg.installing;
+                newSW.addEventListener('statechange', () => {
+                    if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+                        // New SW is ready & there's already a controller = update available
+                        showUpdateBanner();
+                    }
+                });
+            });
+        }).catch(() => {});
     }
 
     // PWA install prompt (Android/Chrome)
@@ -1536,7 +1547,6 @@ function applyUpdate() {
 }
 
 function checkForUpdates() {
-    const lastVersion = localStorage.getItem('dd_app_version') || '0';
     const banner = document.getElementById('updateBanner');
     if (!banner) return;
 
