@@ -575,8 +575,9 @@ function renderDashboard() {
     const profitLoss   = totalRevenue - totalInvest;
     const totalPowder  = getTotalPowderProduced();
 
-    // Calculate total powder sold (in grams)
+    // Calculate total powder sold (in grams) - support both old and new formats
     const totalPowderSold = db.sales.reduce((sum, sale) => {
+        // New format: products array
         if (Array.isArray(sale.products)) {
             return sum + sale.products.reduce((psum, p) => {
                 const amountStr = p.amount || '';
@@ -587,6 +588,10 @@ function renderDashboard() {
                 }
                 return psum;
             }, 0);
+        }
+        // Old format: single product with quantityGrams
+        if (sale.quantityGrams) {
+            return sum + sale.quantityGrams;
         }
         return sum;
     }, 0);
@@ -944,12 +949,21 @@ function renderSales() {
     }
 
     const sorted = db.sales.slice().sort((a, b) => b.date.localeCompare(a.date));
-    el.innerHTML = sorted.map(r => `
+    el.innerHTML = sorted.map(r => {
+        // Build product details string
+        let productDetails = '';
+        if (Array.isArray(r.products) && r.products.length > 0) {
+            productDetails = r.products.map(p => `${p.amount || p.quantity + 'pc'} ${p.product}`).join(', ');
+        } else {
+            productDetails = r.product;
+        }
+
+        return `
         <div class="card record-card">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-1">
                     <div>
-                        <div class="fw-semibold">${esc(r.product)}</div>
+                        <div class="fw-semibold">${esc(productDetails)}</div>
                         <div class="text-muted small">${fDate(r.date)}${r.customer ? ' &bull; ' + esc(r.customer) : ''}</div>
                     </div>
                     <div class="text-end ms-2">
@@ -958,8 +972,6 @@ function renderSales() {
                 </div>
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
                     <div>
-                        <span class="badge bg-light text-dark border me-1">${r.quantitySold} ${r.unit}</span>
-                        <span class="badge bg-light text-dark border">৳${((r.totalRevenue / (r.quantityGrams || 1)) * 100).toFixed(0)}/100g</span>
                         ${r.notes ? '<div class="text-muted small mt-1">' + esc(r.notes) + '</div>' : ''}
                     </div>
                     <div class="d-flex gap-1">

@@ -3,7 +3,7 @@
 //  Enables PWA install on Android & iOS + offline support
 // ============================================================
 
-const CACHE = 'dried-depot-v17';
+const CACHE = 'dried-depot-v18';
 const FILES = ['./style.css', './app.js', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', e => {
