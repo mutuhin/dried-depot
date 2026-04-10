@@ -30,12 +30,18 @@ let deferredInstallPrompt = null;
 // ============================================================
 //  INIT
 // ============================================================
+const CURRENT_VERSION = '14'; // Update this when deploying new features
+
 document.addEventListener('DOMContentLoaded', () => {
     loadAll();
     setDefaultDates();
     updateCurrentDate();
     renderDashboard();
     updateProductDatalist();
+
+    // Check for new version every 5 seconds
+    setInterval(checkForUpdates, 5000);
+    checkForUpdates(); // Check immediately on load
 
     // Re-render report summary when filters change
     ['report-type','report-startDate','report-endDate'].forEach(id => {
@@ -69,6 +75,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const banner = document.getElementById('installBanner');
         if (banner) banner.classList.remove('d-none');
     });
+
+    // Check for updates every 5 seconds
+    setInterval(checkForUpdates, 5000);
 
     // Auto-connect Firebase if previously configured
     autoConnectFirebase();
@@ -1451,6 +1460,23 @@ function dismissUpdate() {
 
 function applyUpdate() {
     window.location.reload();
+}
+
+function checkForUpdates() {
+    const lastVersion = localStorage.getItem('dd_app_version') || '0';
+    const banner = document.getElementById('updateBanner');
+    if (!banner) return;
+
+    // Show update banner if service worker detected new version
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+            registrations.forEach(reg => {
+                if (reg.waiting || (reg.installing && reg.installing.state === 'installed')) {
+                    banner.classList.remove('d-none');
+                }
+            });
+        });
+    }
 }
 
 // ============================================================
