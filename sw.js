@@ -4,7 +4,7 @@
 // ============================================================
 
 const CACHE = 'dried-depot-v13';
-const FILES = ['./index.html', './style.css', './app.js', './manifest.json', './icon.svg'];
+const FILES = ['./style.css', './app.js', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', e => {
     e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)));
@@ -22,6 +22,16 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
     if (e.request.method !== 'GET') return;
+
+    // Always fetch index.html fresh (no cache) for instant updates
+    if (e.request.url.includes('index.html') || e.request.url.endsWith('/')) {
+        e.respondWith(
+            fetch(e.request).catch(() => caches.match(e.request))
+        );
+        return;
+    }
+
+    // Cache-first for other resources (CSS/JS/images)
     e.respondWith(
         caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => cached))
     );
