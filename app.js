@@ -681,10 +681,10 @@ function renderDashboard() {
     // Product chips
     const chipsEl = document.getElementById('product-chips');
     if (chipsEl) {
+        // Only use purchases and production for product names (not sales summaries)
         const names = [...new Set([
             ...db.purchases.map(r => r.product),
             ...db.production.map(r => r.product),
-            ...db.sales.map(r => r.product)
         ])].filter(Boolean).sort();
         chipsEl.innerHTML = names.length === 0
             ? '<small class="text-muted">No products yet</small>'
@@ -698,14 +698,30 @@ function renderDashboard() {
 function openProductDetail(name) {
     const p = db.purchases.filter(r => r.product === name).sort((a,b) => b.date.localeCompare(a.date));
     const prod = db.production.filter(r => r.product === name).sort((a,b) => b.date.localeCompare(a.date));
-    const s = db.sales.filter(r => r.product === name).sort((a,b) => b.date.localeCompare(a.date));
+
+    // Find all sales that include this product (new multi-product format + old format)
+    const s = db.sales.filter(r => {
+        if (Array.isArray(r.products)) {
+            return r.products.some(p => p.product === name);
+        }
+        return r.product === name;
+    }).sort((a,b) => b.date.localeCompare(a.date));
 
     const totalBought  = p.reduce((t, r) => t + (r.quantityKg || 0), 0);
     const totalCost    = p.reduce((t, r) => t + (r.totalCost || 0), 0);
     const totalMachine = prod.reduce((t, r) => t + machineCost(r), 0);
     const totalPowder  = prod.reduce((t, r) => t + (r.powderYieldGrams || 0), 0);
-    const totalRevenue = s.reduce((t, r) => t + (r.totalRevenue || 0), 0);
-    const profit       = totalRevenue - (totalCost + totalMachine);
+
+    // Calculate revenue only for this product's share
+    const totalRevenue = s.reduce((t, r) => {
+        if (Array.isArray(r.products)) {
+            const item = r.products.find(p => p.product === name);
+            return t + (item ? item.quantity * item.price : 0);
+        }
+        return t + (r.totalRevenue || 0);
+    }, 0);
+
+    const profit = totalRevenue - (totalCost + totalMachine);
 
     document.getElementById('productDetailTitle').textContent = name;
 
@@ -762,16 +778,29 @@ function openProductDetail(name) {
             </div>
         </div>`).join('');
 
-    document.getElementById('productDetailSales').innerHTML = s.length === 0 ? noRec : s.map(r => `
+    document.getElementById('productDetailSales').innerHTML = s.length === 0 ? noRec : s.map(r => {
+        let itemRevenue = r.totalRevenue || 0;
+        let itemAmount = '';
+        if (Array.isArray(r.products)) {
+            const item = r.products.find(p => p.product === name);
+            if (item) {
+                itemRevenue = item.quantity * item.price;
+                itemAmount = item.amount || (item.quantity + ' pc');
+            }
+        } else {
+            itemAmount = fWeight(r.quantityGrams);
+        }
+        return `
         <div class="card record-card mb-1">
             <div class="card-body d-flex justify-content-between align-items-center py-2">
-                <div class="text-muted small">${fDate(r.date)}${r.customer ? ' &bull; ' + esc(r.customer) : ''}</div>
-                <div class="text-end">
-                    <div class="fw-bold text-success small">৳${fNum(r.totalRevenue)}</div>
-                    <div class="text-muted" style="font-size:0.7rem">${fWeight(r.quantityGrams)}</div>
+                <div>
+                    <div class="text-muted small">${fDate(r.date)}${r.customer ? ' &bull; ' + esc(r.customer) : ''}</div>
+                    <div class="text-muted" style="font-size:0.7rem">${itemAmount}</div>
                 </div>
+                <div class="fw-bold text-success small">৳${fNum(itemRevenue)}</div>
             </div>
-        </div>`).join('');
+        </div>`;
+    }).join('');
 
     new bootstrap.Modal(document.getElementById('productDetailModal')).show();
 }
