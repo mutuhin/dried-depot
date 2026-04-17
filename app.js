@@ -785,7 +785,9 @@ function openProductDetail(name) {
             const item = r.products.find(p => p.product === name);
             if (item) {
                 itemRevenue = item.quantity * item.price;
-                itemAmount = item.amount || (item.quantity + ' pc');
+                const qty = item.quantity || 1;
+                const amt = item.amount || '';
+                itemAmount = qty > 1 && amt ? `${qty} x ${amt}` : amt || `${qty} pc`;
             }
         } else {
             itemAmount = fWeight(r.quantityGrams);
