@@ -7,7 +7,8 @@ const KEYS = {
     purchases:  'dd_purchases',
     production: 'dd_production',
     costs:      'dd_costs',
-    sales:      'dd_sales'
+    sales:      'dd_sales',
+    stock:      'dd_stock'
 };
 
 const MACHINE_RATE_PER_HOUR = 9 / 24; // 9 taka per 24 hours = 0.375 ৳/hour
@@ -16,7 +17,7 @@ function machineCost(r) {
     return ((r.machineHours || 0) + (r.machineMinutes || 0) / 60) * MACHINE_RATE_PER_HOUR;
 }
 
-let db = { purchases: [], production: [], costs: [], sales: [] };
+let db = { purchases: [], production: [], costs: [], sales: [], stock: [] };
 let pendingDelete = { type: null, id: null };
 
 // ============================================================
@@ -109,6 +110,7 @@ function loadAll() {
     db.production = JSON.parse(localStorage.getItem(KEYS.production) || '[]');
     db.costs      = JSON.parse(localStorage.getItem(KEYS.costs)      || '[]');
     db.sales      = JSON.parse(localStorage.getItem(KEYS.sales)      || '[]');
+    db.stock      = JSON.parse(localStorage.getItem(KEYS.stock)      || '[]');
 }
 
 function saveAll() {
@@ -123,6 +125,7 @@ function saveAllLocal() {
     localStorage.setItem(KEYS.production, JSON.stringify(db.production));
     localStorage.setItem(KEYS.costs,      JSON.stringify(db.costs));
     localStorage.setItem(KEYS.sales,      JSON.stringify(db.sales));
+    localStorage.setItem(KEYS.stock,      JSON.stringify(db.stock));
 }
 
 function uid() {
@@ -145,6 +148,7 @@ function switchTab(name) {
         production: renderProduction,
         costs:      renderCosts,
         sales:      renderSales,
+        stock:      renderStock,
         reports:    updateReportSummary
     };
     if (renders[name]) renders[name]();
@@ -159,7 +163,8 @@ function openModal(type, id = null) {
         purchase:   { modal: 'purchaseModal',   form: 'purchaseForm',   titleEl: 'purchaseModalTitle' },
         production: { modal: 'productionModal', form: 'productionForm', titleEl: 'productionModalTitle' },
         cost:       { modal: 'costModal',       form: 'costForm',       titleEl: 'costModalTitle' },
-        sale:       { modal: 'saleModal',       form: 'saleForm',       titleEl: 'saleModalTitle' }
+        sale:       { modal: 'saleModal',       form: 'saleForm',       titleEl: 'saleModalTitle' },
+        stock:      { modal: 'stockModal',      form: 'stockForm',      titleEl: 'stockModalTitle' }
     };
     const cfg = configs[type];
 
@@ -172,6 +177,17 @@ function openModal(type, id = null) {
         populateForm(type, id);
     } else {
         document.getElementById(cfg.titleEl).textContent = 'Add ' + titleCase(type);
+    }
+
+    // Populate stock product dropdown with produced products
+    if (type === 'stock') {
+        const products = [...new Set([
+            ...db.purchases.map(r => r.product),
+            ...db.production.map(r => r.product)
+        ])].filter(Boolean).sort();
+        const sel = document.getElementById('stock-product');
+        sel.innerHTML = '<option value="">Select product...</option>' +
+            products.map(p => `<option value="${esc(p)}">${esc(p)}</option>`).join('');
     }
 
     new bootstrap.Modal(document.getElementById(cfg.modal)).show();
@@ -231,6 +247,14 @@ function populateForm(type, id) {
         }
         renderSaleProductsForm();
         calcSaleTotal();
+    }
+    if (type === 'stock') {
+        const r = db.stock.find(x => x.id === id);
+        if (!r) return;
+        set('stock-id', r.id);
+        set('stock-product', r.product);
+        set('stock-packetSize', r.packetSize);
+        set('stock-packets', r.totalPackets);
     }
 }
 
@@ -557,7 +581,7 @@ function deleteRecord(type, id) {
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
 
     document.getElementById('confirmDeleteBtn').onclick = () => {
-        const map = { purchase: 'purchases', production: 'production', cost: 'costs', sale: 'sales' };
+        const map = { purchase: 'purchases', production: 'production', cost: 'costs', sale: 'sales', stock: 'stock' };
         const key = map[pendingDelete.type];
         db[key] = db[key].filter(r => r.id !== pendingDelete.id);
         saveAll();
@@ -567,6 +591,7 @@ function deleteRecord(type, id) {
         renderProduction();
         renderCosts();
         renderSales();
+        renderStock();
         toast('Record deleted', 'danger');
     };
 }
@@ -970,6 +995,105 @@ function renderCosts() {
                 </div>
             </div>
         </div>`).join('');
+}
+
+// ============================================================
+//  RENDER — STOCK
+// ============================================================
+function renderStock() {
+    const el = document.getElementById('stock-list');
+    if (!el) return;
+
+    if (db.stock.length === 0) {
+        el.innerHTML = `<div class="empty-state">
+            <i class="fas fa-boxes d-block"></i>
+            <p class="mb-2">No stock records yet</p>
+            <button class="btn btn-primary btn-sm" onclick="openModal('stock')">Add First Stock</button>
+        </div>`;
+        return;
+    }
+
+    const sorted = db.stock.slice().sort((a, b) => a.product.localeCompare(b.product));
+    el.innerHTML = sorted.map(r => {
+        const sold = calcPacketsSold(r.product, r.packetSize);
+        const remaining = Math.max(0, r.totalPackets - sold);
+        const pct = r.totalPackets > 0 ? Math.min(100, (remaining / r.totalPackets) * 100) : 0;
+        const barColor = pct > 50 ? 'bg-success' : pct > 20 ? 'bg-warning' : 'bg-danger';
+
+        return `
+        <div class="card record-card mb-2">
+            <div class="card-body pb-2">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <div class="fw-semibold">${esc(r.product)}</div>
+                        <span class="badge bg-secondary">${esc(r.packetSize)} packets</span>
+                    </div>
+                    <div class="d-flex gap-1">
+                        <button class="btn btn-outline-primary btn-sm" onclick="openModal('stock','${r.id}')">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="deleteRecord('stock','${r.id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="row g-2 text-center mb-2">
+                    <div class="col-4">
+                        <div class="text-muted" style="font-size:0.7rem">Total</div>
+                        <div class="fw-bold text-primary">${r.totalPackets}</div>
+                    </div>
+                    <div class="col-4">
+                        <div class="text-muted" style="font-size:0.7rem">Sold</div>
+                        <div class="fw-bold text-danger">${sold}</div>
+                    </div>
+                    <div class="col-4">
+                        <div class="text-muted" style="font-size:0.7rem">Remaining</div>
+                        <div class="fw-bold ${remaining > 0 ? 'text-success' : 'text-danger'}">${remaining}</div>
+                    </div>
+                </div>
+                <div class="progress" style="height:6px">
+                    <div class="progress-bar ${barColor}" style="width:${pct}%"></div>
+                </div>
+                <div class="text-muted mt-1" style="font-size:0.7rem">${remaining} of ${r.totalPackets} packets remaining</div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function calcPacketsSold(productName, packetSize) {
+    return db.sales.reduce((total, sale) => {
+        if (Array.isArray(sale.products)) {
+            return total + sale.products
+                .filter(p => p.product === productName && p.amount === packetSize)
+                .reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0);
+        }
+        return total;
+    }, 0);
+}
+
+function setStockPacketSize(size) {
+    const el = document.getElementById('stock-packetSize');
+    if (el) { el.value = size; }
+}
+
+function saveStock() {
+    const form = document.getElementById('stockForm');
+    if (!form.checkValidity()) { form.reportValidity(); return; }
+
+    const id = val('stock-id');
+    const record = {
+        id:           id || uid(),
+        product:      val('stock-product'),
+        packetSize:   val('stock-packetSize').trim(),
+        totalPackets: parseInt(val('stock-packets')) || 0,
+        createdAt:    new Date().toISOString()
+    };
+
+    upsert(db.stock, id, record);
+    saveAll();
+    hideModal('stockModal');
+    renderStock();
+    toast('Stock saved!', 'success');
 }
 
 // ============================================================
