@@ -408,6 +408,145 @@ body {
 }
 
 /* ----------------------------------------
+   OVERVIEW HEADER
+   ---------------------------------------- */
+.overview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+
+.overview-title {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text);
+}
+
+.overview-hint {
+    font-size: 0.68rem;
+    color: var(--muted);
+}
+
+/* ----------------------------------------
+   STAT CARD INNER ELEMENTS
+   ---------------------------------------- */
+.stat-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 7px;
+    font-size: 0.95rem;
+}
+
+.stat-label {
+    font-size: 0.63rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin-bottom: 1px;
+}
+
+.stat-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 2px;
+}
+
+.stat-tap {
+    font-size: 0.6rem;
+    color: var(--muted);
+    margin-top: 3px;
+}
+
+.stat-teal {
+    background: linear-gradient(135deg, #fff 60%, #e0f2f1 100%) !important;
+    border-left: 4px solid #00897b !important;
+}
+
+/* ----------------------------------------
+   MODAL HEADER VARIANTS
+   ---------------------------------------- */
+.modal-header-purple { background: linear-gradient(135deg, #5b21b6, #7c3aed); color: #fff; }
+
+/* ----------------------------------------
+   STAT DETAIL BOTTOM SHEET
+   ---------------------------------------- */
+.stat-detail-sheet .modal-dialog {
+    margin: 0;
+    max-width: 100%;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+}
+
+.stat-detail-sheet .modal-content {
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 80vh;
+}
+
+.stat-detail-sheet .modal-body {
+    overflow-y: auto;
+    max-height: calc(80vh - 120px);
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 8px;
+}
+
+.detail-row:last-child { border-bottom: none; }
+
+.detail-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text);
+}
+
+.detail-meta {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-top: 1px;
+}
+
+.detail-value {
+    font-weight: 700;
+    font-size: 0.88rem;
+    white-space: nowrap;
+}
+
+.detail-total {
+    background: var(--primary-light);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    margin-top: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.detail-total-label {
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: var(--primary-dark);
+}
+
+.detail-total-value {
+    font-weight: 700;
+    font-size: 1rem;
+    color: var(--primary);
+}
+
+/* ----------------------------------------
    PRINT
    ---------------------------------------- */
 @media print {

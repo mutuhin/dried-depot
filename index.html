@@ -61,22 +61,30 @@
     <!-- ===== DASHBOARD TAB ===== -->
     <div id="tab-dashboard" class="tab-section">
         <div class="container-fluid p-3">
-            <p class="text-muted small mb-2">Business Overview</p>
+
+            <div class="overview-header mb-3">
+                <span class="overview-title">Business Overview</span>
+                <span class="overview-hint"><i class="fas fa-hand-pointer me-1"></i>Tap a card for details</span>
+            </div>
 
             <div class="row g-2 mb-2">
                 <div class="col-6">
-                    <div class="card stat-card border-0 shadow-sm h-100 stat-green">
-                        <div class="card-body p-3">
-                            <div class="text-muted small">Total Investment</div>
-                            <div class="fw-bold fs-6 text-success" id="stat-totalInvestment">৳0</div>
+                    <div class="card stat-card stat-green h-100" onclick="showStatDetail('investment')">
+                        <div class="card-body">
+                            <div class="stat-icon" style="background:rgba(27,122,78,0.1);color:#1b7a4e"><i class="fas fa-wallet"></i></div>
+                            <div class="stat-label">Total Investment</div>
+                            <div class="stat-value text-success" id="stat-totalInvestment">৳0</div>
+                            <div class="stat-tap">tap for details <i class="fas fa-chevron-right"></i></div>
                         </div>
                     </div>
                 </div>
                 <div class="col-6">
-                    <div class="card stat-card border-0 shadow-sm h-100 stat-blue">
-                        <div class="card-body p-3">
-                            <div class="text-muted small">Total Sell</div>
-                            <div class="fw-bold fs-6 text-primary" id="stat-totalRevenue">৳0</div>
+                    <div class="card stat-card stat-blue h-100" onclick="showStatDetail('revenue')">
+                        <div class="card-body">
+                            <div class="stat-icon" style="background:rgba(21,101,192,0.1);color:#1565c0"><i class="fas fa-coins"></i></div>
+                            <div class="stat-label">Total Sell</div>
+                            <div class="stat-value text-primary" id="stat-totalRevenue">৳0</div>
+                            <div class="stat-tap">tap for details <i class="fas fa-chevron-right"></i></div>
                         </div>
                     </div>
                 </div>
@@ -84,18 +92,45 @@
 
             <div class="row g-2 mb-2">
                 <div class="col-6">
-                    <div class="card stat-card border-0 shadow-sm h-100 stat-profit">
-                        <div class="card-body p-3">
-                            <div class="text-muted small">Profit / Loss</div>
-                            <div class="fw-bold fs-6" id="stat-profitLoss">৳0</div>
+                    <div class="card stat-card stat-profit h-100" onclick="showStatDetail('profit')">
+                        <div class="card-body">
+                            <div class="stat-icon" style="background:rgba(124,58,237,0.1);color:#7c3aed"><i class="fas fa-chart-line"></i></div>
+                            <div class="stat-label">Profit / Loss</div>
+                            <div class="stat-value" id="stat-profitLoss">৳0</div>
+                            <div class="stat-tap">tap for details <i class="fas fa-chevron-right"></i></div>
                         </div>
                     </div>
                 </div>
                 <div class="col-6">
-                    <div class="card stat-card border-0 shadow-sm h-100 stat-yellow">
-                        <div class="card-body p-3">
-                            <div class="text-muted small">Powder Produced</div>
-                            <div class="fw-bold fs-6 text-warning" id="stat-powderProduced">0g</div>
+                    <div class="card stat-card stat-yellow h-100" onclick="showStatDetail('powder')">
+                        <div class="card-body">
+                            <div class="stat-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b"><i class="fas fa-industry"></i></div>
+                            <div class="stat-label">Powder Produced</div>
+                            <div class="stat-value text-warning" id="stat-powderProduced">0g</div>
+                            <div class="stat-tap">tap for details <i class="fas fa-chevron-right"></i></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-2 mb-2">
+                <div class="col-6">
+                    <div class="card stat-card stat-blue h-100" onclick="showStatDetail('rawcost')">
+                        <div class="card-body">
+                            <div class="stat-icon" style="background:rgba(21,101,192,0.1);color:#1565c0"><i class="fas fa-shopping-cart"></i></div>
+                            <div class="stat-label">Raw Material</div>
+                            <div class="stat-value text-primary" id="stat-rawCost">৳0</div>
+                            <div class="stat-tap">tap for details <i class="fas fa-chevron-right"></i></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="card stat-card stat-red h-100" onclick="showStatDetail('othercosts')">
+                        <div class="card-body">
+                            <div class="stat-icon" style="background:rgba(229,57,53,0.1);color:#e53935"><i class="fas fa-receipt"></i></div>
+                            <div class="stat-label">Other Costs</div>
+                            <div class="stat-value text-danger" id="stat-otherCosts">৳0</div>
+                            <div class="stat-tap">tap for details <i class="fas fa-chevron-right"></i></div>
                         </div>
                     </div>
                 </div>
@@ -103,37 +138,22 @@
 
             <div class="row g-2 mb-3">
                 <div class="col-6">
-                    <div class="card stat-card border-0 shadow-sm h-100 stat-blue">
-                        <div class="card-body p-3">
-                            <div class="text-muted small">Raw Material Cost</div>
-                            <div class="fw-bold fs-6 text-primary" id="stat-rawCost">৳0</div>
+                    <div class="card stat-card stat-yellow h-100" onclick="showStatDetail('remaining')">
+                        <div class="card-body">
+                            <div class="stat-icon" style="background:rgba(245,158,11,0.1);color:#f59e0b"><i class="fas fa-box-open"></i></div>
+                            <div class="stat-label">Remaining Powder</div>
+                            <div class="stat-value text-warning" id="stat-remainingPowder">0g</div>
+                            <div class="stat-tap">tap for details <i class="fas fa-chevron-right"></i></div>
                         </div>
                     </div>
                 </div>
                 <div class="col-6">
-                    <div class="card stat-card border-0 shadow-sm h-100 stat-red">
-                        <div class="card-body p-3">
-                            <div class="text-muted small">Other Costs</div>
-                            <div class="fw-bold fs-6 text-danger" id="stat-otherCosts">৳0</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row g-2 mb-3">
-                <div class="col-6">
-                    <div class="card stat-card border-0 shadow-sm h-100 stat-yellow">
-                        <div class="card-body p-3">
-                            <div class="text-muted small">Remaining Powder</div>
-                            <div class="fw-bold fs-6 text-warning" id="stat-remainingPowder">0g</div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6">
-                    <div class="card stat-card border-0 shadow-sm h-100" style="background-color: #f0f0f0;">
-                        <div class="card-body p-3">
-                            <div class="text-muted small">Powder Sold</div>
-                            <div class="fw-bold fs-6 text-muted" id="stat-powderSold">0g</div>
+                    <div class="card stat-card stat-teal h-100" onclick="showStatDetail('sold')">
+                        <div class="card-body">
+                            <div class="stat-icon" style="background:rgba(0,137,123,0.1);color:#00897b"><i class="fas fa-tags"></i></div>
+                            <div class="stat-label">Powder Sold</div>
+                            <div class="stat-value" style="color:#00897b" id="stat-powderSold">0g</div>
+                            <div class="stat-tap">tap for details <i class="fas fa-chevron-right"></i></div>
                         </div>
                     </div>
                 </div>
@@ -734,6 +754,19 @@
                     <i class="fas fa-save me-1"></i>Save
                 </button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== STAT DETAIL BOTTOM SHEET ===== -->
+<div class="modal fade stat-detail-sheet" id="statDetailModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header modal-header-green" id="statDetailHeader">
+                <h6 class="modal-title" id="statDetailTitle"><i class="fas fa-chart-bar me-2"></i>Details</h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-3" id="statDetailBody"></div>
         </div>
     </div>
 </div>

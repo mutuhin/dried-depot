@@ -642,7 +642,7 @@ function renderDashboard() {
     set('stat-profitLoss',      (profitLoss >= 0 ? '+' : '') + '৳' + fNum(profitLoss));
 
     const plEl = document.getElementById('stat-profitLoss');
-    if (plEl) plEl.className = 'fw-bold fs-6 ' + (profitLoss >= 0 ? 'text-success' : 'text-danger');
+    if (plEl) plEl.className = 'stat-value ' + (profitLoss >= 0 ? 'text-success' : 'text-danger');
 
     // Recent purchases (last 5)
     const rp = db.purchases.slice().sort((a, b) => b.date.localeCompare(a.date)).slice(0, 5);
@@ -715,6 +715,260 @@ function renderDashboard() {
             ? '<small class="text-muted">No products yet</small>'
             : names.map(n => `<button class="btn btn-outline-success btn-sm rounded-pill px-3" onclick="openProductDetail('${esc(n)}')">${esc(n)}</button>`).join('');
     }
+}
+
+// ============================================================
+//  STAT DETAIL BREAKDOWN
+// ============================================================
+function showStatDetail(type) {
+    const totalRaw     = db.purchases.reduce((s, r) => s + (r.totalCost || 0), 0);
+    const totalOther   = db.costs.reduce((s, r) => s + (r.amount || 0), 0);
+    const totalMachine = db.production.reduce((s, r) => s + machineCost(r), 0);
+    const totalInvest  = totalRaw + totalOther + totalMachine;
+    const totalRevenue = db.sales.reduce((s, r) => s + (r.totalRevenue || 0), 0);
+    const profitLoss   = totalRevenue - totalInvest;
+
+    const cfgs = {
+        investment: { title: 'Total Investment',  icon: 'fa-wallet',       hdr: 'modal-header-green'  },
+        revenue:    { title: 'Total Sell',         icon: 'fa-coins',        hdr: 'modal-header-blue'   },
+        profit:     { title: 'Profit / Loss',      icon: 'fa-chart-line',   hdr: 'modal-header-purple' },
+        rawcost:    { title: 'Raw Material Cost',  icon: 'fa-shopping-cart',hdr: 'modal-header-blue'   },
+        othercosts: { title: 'Other Costs',        icon: 'fa-receipt',      hdr: 'modal-header-orange' },
+        powder:     { title: 'Powder Produced',    icon: 'fa-industry',     hdr: 'modal-header-orange' },
+        remaining:  { title: 'Remaining Powder',   icon: 'fa-box-open',     hdr: 'modal-header-orange' },
+        sold:       { title: 'Powder Sold',        icon: 'fa-tags',         hdr: 'modal-header-teal'   }
+    };
+    const cfg = cfgs[type];
+    if (!cfg) return;
+
+    document.getElementById('statDetailHeader').className = 'modal-header ' + cfg.hdr;
+    document.getElementById('statDetailTitle').innerHTML = `<i class="fas ${cfg.icon} me-2"></i>${cfg.title}`;
+
+    let html = '';
+
+    if (type === 'investment') {
+        html = `
+        <p class="text-muted small fw-semibold mb-2">Cost Breakdown</p>
+        <div class="detail-row">
+            <div><div class="detail-label">Raw Material Cost</div><div class="detail-meta">${db.purchases.length} purchase(s)</div></div>
+            <div class="detail-value text-success">৳${fNum(totalRaw)}</div>
+        </div>
+        <div class="detail-row">
+            <div><div class="detail-label">Other Costs</div><div class="detail-meta">${db.costs.length} entry(ies)</div></div>
+            <div class="detail-value text-danger">৳${fNum(totalOther)}</div>
+        </div>
+        <div class="detail-row">
+            <div><div class="detail-label">Machine Run Cost</div><div class="detail-meta">${db.production.length} production run(s)</div></div>
+            <div class="detail-value text-danger">৳${fNum(totalMachine)}</div>
+        </div>
+        <div class="detail-total">
+            <span class="detail-total-label"><i class="fas fa-wallet me-1"></i>Total Investment</span>
+            <span class="detail-total-value">৳${fNum(totalInvest)}</span>
+        </div>`;
+    }
+
+    else if (type === 'revenue') {
+        const sorted = db.sales.slice().sort((a,b) => b.date.localeCompare(a.date));
+        if (sorted.length === 0) {
+            html = '<div class="text-muted small text-center py-4">No sales yet</div>';
+        } else {
+            html = `<p class="text-muted small fw-semibold mb-2">${sorted.length} sale(s)</p>` +
+                sorted.map(r => {
+                    const label = Array.isArray(r.products)
+                        ? r.products.map(p => `${p.quantity}×${p.amount || ''} ${esc(p.product)}`).join(', ')
+                        : esc(r.product || '');
+                    return `<div class="detail-row">
+                        <div style="flex:1;min-width:0">
+                            <div class="detail-label" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label || 'Sale'}</div>
+                            <div class="detail-meta">${fDate(r.date)}${r.customer ? ' · ' + esc(r.customer) : ''}</div>
+                        </div>
+                        <div class="detail-value text-success">৳${fNum(r.totalRevenue)}</div>
+                    </div>`;
+                }).join('') +
+                `<div class="detail-total">
+                    <span class="detail-total-label"><i class="fas fa-coins me-1"></i>Total Sell</span>
+                    <span class="detail-total-value">৳${fNum(totalRevenue)}</span>
+                </div>`;
+        }
+    }
+
+    else if (type === 'profit') {
+        const clr = profitLoss >= 0 ? '#1b7a4e' : '#c62828';
+        const bg  = profitLoss >= 0 ? '#e8f5ee' : '#fdecea';
+        html = `
+        <p class="text-muted small fw-semibold mb-2">Profit Calculation</p>
+        <div class="detail-row">
+            <div class="detail-label">Total Sell</div>
+            <div class="detail-value text-success">৳${fNum(totalRevenue)}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Raw Material Cost</div>
+            <div class="detail-value text-danger">− ৳${fNum(totalRaw)}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Other Costs</div>
+            <div class="detail-value text-danger">− ৳${fNum(totalOther)}</div>
+        </div>
+        <div class="detail-row">
+            <div class="detail-label">Machine Costs</div>
+            <div class="detail-value text-danger">− ৳${fNum(totalMachine)}</div>
+        </div>
+        <div class="detail-total" style="background:${bg}">
+            <span class="detail-total-label" style="color:${clr}">${profitLoss >= 0 ? 'Net Profit' : 'Net Loss'}</span>
+            <span class="detail-total-value" style="color:${clr}">${profitLoss >= 0 ? '+' : ''}৳${fNum(profitLoss)}</span>
+        </div>`;
+    }
+
+    else if (type === 'rawcost') {
+        const sorted = db.purchases.slice().sort((a,b) => b.date.localeCompare(a.date));
+        if (sorted.length === 0) {
+            html = '<div class="text-muted small text-center py-4">No purchases yet</div>';
+        } else {
+            html = `<p class="text-muted small fw-semibold mb-2">${sorted.length} purchase(s)</p>` +
+                sorted.map(r => `
+                <div class="detail-row">
+                    <div>
+                        <div class="detail-label">${esc(r.product)}</div>
+                        <div class="detail-meta">${fDate(r.date)} · ${r.quantityKg}kg @ ৳${r.pricePerKg}/kg${r.supplier ? ' · ' + esc(r.supplier) : ''}</div>
+                    </div>
+                    <div class="detail-value text-success">৳${fNum(r.totalCost)}</div>
+                </div>`).join('') +
+                `<div class="detail-total">
+                    <span class="detail-total-label"><i class="fas fa-shopping-cart me-1"></i>Total Raw Cost</span>
+                    <span class="detail-total-value">৳${fNum(totalRaw)}</span>
+                </div>`;
+        }
+    }
+
+    else if (type === 'othercosts') {
+        const sorted   = db.costs.slice().sort((a,b) => b.date.localeCompare(a.date));
+        const machProd = db.production.filter(r => machineCost(r) > 0).slice().sort((a,b) => b.date.localeCompare(a.date));
+
+        if (sorted.length === 0 && machProd.length === 0) {
+            html = '<div class="text-muted small text-center py-4">No costs yet</div>';
+        } else {
+            const costRows = sorted.map(r => `
+                <div class="detail-row">
+                    <div>
+                        <div class="detail-label">${esc(r.itemName || r.category)}</div>
+                        <div class="detail-meta">${fDate(r.date)} · ${esc(r.category)}</div>
+                    </div>
+                    <div class="detail-value text-danger">৳${fNum(r.amount)}</div>
+                </div>`).join('');
+
+            const machRows = machProd.map(r => {
+                const mc  = machineCost(r);
+                const hrs = r.machineHours || 0;
+                const min = r.machineMinutes || 0;
+                return `<div class="detail-row">
+                    <div>
+                        <div class="detail-label">Machine Run · ${esc(r.product)}</div>
+                        <div class="detail-meta">${fDate(r.date)} · ${hrs}h ${min}m @ ৳${MACHINE_RATE_PER_HOUR.toFixed(3)}/h</div>
+                    </div>
+                    <div class="detail-value text-danger">৳${fNum(mc)}</div>
+                </div>`;
+            }).join('');
+
+            html = (sorted.length   > 0 ? `<p class="text-muted small fw-semibold mb-1">Cost Entries (${sorted.length})</p>${costRows}` : '') +
+                   (machProd.length > 0 ? `<p class="text-muted small fw-semibold mb-1 mt-3">Machine Run Costs (${machProd.length})</p>${machRows}` : '') +
+                   `<div class="detail-total">
+                       <span class="detail-total-label"><i class="fas fa-receipt me-1"></i>Total Other Costs</span>
+                       <span class="detail-total-value">৳${fNum(totalOther + totalMachine)}</span>
+                   </div>`;
+        }
+    }
+
+    else if (type === 'powder') {
+        const sorted = db.production.slice().sort((a,b) => b.date.localeCompare(a.date));
+        const total  = getTotalPowderProduced();
+        if (sorted.length === 0) {
+            html = '<div class="text-muted small text-center py-4">No production records yet</div>';
+        } else {
+            html = `<p class="text-muted small fw-semibold mb-2">${sorted.length} production run(s)</p>` +
+                sorted.map(r => `
+                <div class="detail-row">
+                    <div>
+                        <div class="detail-label">${esc(r.product)}</div>
+                        <div class="detail-meta">${fDate(r.date)} · ${r.rawMaterialKg}kg raw · ${r.yieldPercent}% yield</div>
+                    </div>
+                    <div class="detail-value text-warning">${fWeight(r.powderYieldGrams)}</div>
+                </div>`).join('') +
+                `<div class="detail-total">
+                    <span class="detail-total-label"><i class="fas fa-industry me-1"></i>Total Produced</span>
+                    <span class="detail-total-value">${fWeight(total)}</span>
+                </div>`;
+        }
+    }
+
+    else if (type === 'remaining' || type === 'sold') {
+        const products = [...new Set([
+            ...db.purchases.map(r => r.product),
+            ...db.production.map(r => r.product)
+        ])].filter(Boolean).sort();
+
+        const calcTotalSold = () => db.sales.reduce((sum, sale) => {
+            if (Array.isArray(sale.products)) {
+                return sum + sale.products.reduce((ps, p) => {
+                    const a = p.amount || '', q = p.quantity || 1;
+                    if (a.includes('kg'))  return ps + parseFloat(a) * 1000 * q;
+                    if (a.includes('gm'))  return ps + parseFloat(a) * q;
+                    return ps;
+                }, 0);
+            }
+            return sum + (sale.quantityGrams || 0);
+        }, 0);
+
+        if (products.length === 0) {
+            html = '<div class="text-muted small text-center py-4">No products yet</div>';
+        } else {
+            const rows = products.map(name => {
+                const produced   = getPowderProducedByProduct(name);
+                const sold       = getTotalPowderSoldByProduct(name);
+                const remaining  = Math.max(0, produced - sold);
+                const salesCount = db.sales.filter(r =>
+                    Array.isArray(r.products) ? r.products.some(p => p.product === name) : r.product === name
+                ).length;
+
+                if (type === 'remaining') {
+                    return `<div class="detail-row">
+                        <div>
+                            <div class="detail-label">${esc(name)}</div>
+                            <div class="detail-meta">Produced: ${fWeight(produced)} · Sold: ${fWeight(sold)}</div>
+                        </div>
+                        <div class="detail-value text-warning">${fWeight(remaining)}</div>
+                    </div>`;
+                } else {
+                    return `<div class="detail-row">
+                        <div>
+                            <div class="detail-label">${esc(name)}</div>
+                            <div class="detail-meta">${salesCount} sale(s)</div>
+                        </div>
+                        <div class="detail-value" style="color:#00897b">${fWeight(sold)}</div>
+                    </div>`;
+                }
+            }).join('');
+
+            const totalSold = calcTotalSold();
+            const totalPow  = getTotalPowderProduced();
+
+            if (type === 'remaining') {
+                html = `<p class="text-muted small fw-semibold mb-2">Per product</p>${rows}
+                    <div class="detail-total">
+                        <span class="detail-total-label"><i class="fas fa-box-open me-1"></i>Total Remaining</span>
+                        <span class="detail-total-value">${fWeight(Math.max(0, totalPow - totalSold))}</span>
+                    </div>`;
+            } else {
+                html = `<p class="text-muted small fw-semibold mb-2">Per product</p>${rows}
+                    <div class="detail-total">
+                        <span class="detail-total-label"><i class="fas fa-tags me-1"></i>Total Sold</span>
+                        <span class="detail-total-value">${fWeight(totalSold)}</span>
+                    </div>`;
+            }
+        }
+    }
+
+    document.getElementById('statDetailBody').innerHTML = html;
+    new bootstrap.Modal(document.getElementById('statDetailModal')).show();
 }
 
 // ============================================================
