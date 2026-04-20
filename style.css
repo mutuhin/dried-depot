@@ -547,6 +547,41 @@ body {
 }
 
 /* ----------------------------------------
+   PAID / DUE
+   ---------------------------------------- */
+.badge-paid {
+    background: #e8f5ee;
+    color: #1b7a4e;
+    border: 1px solid rgba(27,122,78,0.25);
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 3px 8px !important;
+    border-radius: 20px !important;
+}
+
+.badge-due {
+    background: #fdecea;
+    color: #c62828;
+    border: 1px solid rgba(229,57,53,0.25);
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 3px 8px !important;
+    border-radius: 20px !important;
+}
+
+.stat-due {
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: #e53935;
+    margin-bottom: 2px;
+}
+
+.sale-due-card {
+    border-left: 3px solid #e53935 !important;
+    background: #fffcfc !important;
+}
+
+/* ----------------------------------------
    PRINT
    ---------------------------------------- */
 @media print {

@@ -235,6 +235,7 @@ function populateForm(type, id) {
         set('sale-date', r ? r.date : new Date().toISOString().split('T')[0]);
         set('sale-customer', r ? (r.customer || '') : '');
         set('sale-notes', r ? (r.notes || '') : '');
+        set('sale-payment', r ? (r.paymentStatus || 'paid') : 'paid');
 
         // Initialize products list
         if (r && r.products && Array.isArray(r.products)) {
@@ -559,9 +560,10 @@ function saveSale() {
         unit:         'units',
         quantityGrams: totalAmountGrams,
         sellingPrice: total / Math.max(saleProducts.length, 1),
-        totalRevenue: total,
-        customer:     val('sale-customer').trim(),
-        notes:        val('sale-notes').trim(),
+        totalRevenue:  total,
+        paymentStatus: val('sale-payment') || 'paid',
+        customer:      val('sale-customer').trim(),
+        notes:         val('sale-notes').trim(),
         createdAt:    new Date().toISOString()
     };
 
@@ -571,6 +573,16 @@ function saveSale() {
     renderDashboard();
     renderSales();
     toast('Sale recorded!', 'success');
+}
+
+function markSaleAsPaid(id) {
+    const r = db.sales.find(x => x.id === id);
+    if (!r) return;
+    r.paymentStatus = 'paid';
+    saveAll();
+    renderDashboard();
+    renderSales();
+    toast('Marked as Paid!', 'success');
 }
 
 // ============================================================
@@ -604,7 +616,11 @@ function renderDashboard() {
     const totalOther   = db.costs.reduce((s, r) => s + (r.amount || 0), 0);
     const totalMachine = db.production.reduce((s, r) => s + machineCost(r), 0);
     const totalInvest  = totalRaw + totalOther + totalMachine;
-    const totalRevenue = db.sales.reduce((s, r) => s + (r.totalRevenue || 0), 0);
+    const totalPaid    = db.sales.filter(r => (r.paymentStatus || 'paid') === 'paid')
+                                  .reduce((s, r) => s + (r.totalRevenue || 0), 0);
+    const totalDue     = db.sales.filter(r => r.paymentStatus === 'due')
+                                  .reduce((s, r) => s + (r.totalRevenue || 0), 0);
+    const totalRevenue = totalPaid;
     const profitLoss   = totalRevenue - totalInvest;
     const totalPowder  = getTotalPowderProduced();
 
@@ -640,6 +656,16 @@ function renderDashboard() {
     set('stat-otherCosts',      '৳' + fNum(totalOther + totalMachine));
     set('stat-totalRevenue',    '৳' + fNum(totalRevenue));
     set('stat-profitLoss',      (profitLoss >= 0 ? '+' : '') + '৳' + fNum(profitLoss));
+
+    const dueEl = document.getElementById('stat-dueAmount');
+    if (dueEl) {
+        if (totalDue > 0) {
+            dueEl.textContent = 'Due: ৳' + fNum(totalDue);
+            dueEl.classList.remove('d-none');
+        } else {
+            dueEl.classList.add('d-none');
+        }
+    }
 
     const plEl = document.getElementById('stat-profitLoss');
     if (plEl) plEl.className = 'stat-value ' + (profitLoss >= 0 ? 'text-success' : 'text-danger');
@@ -688,19 +714,24 @@ function renderDashboard() {
     if (rsEl) {
         rsEl.innerHTML = rsales.length === 0
             ? emptyState('fa-tags', 'No sales yet')
-            : rsales.map(r => `
-                <div class="card record-card">
+            : rsales.map(r => {
+                const isPaid = (r.paymentStatus || 'paid') === 'paid';
+                const productLabel = Array.isArray(r.products) && r.products.length
+                    ? r.products.map(p => `${p.amount || ''} ${esc(p.product)}`).join(', ')
+                    : esc(r.product || '');
+                return `<div class="card record-card">
                     <div class="card-body d-flex justify-content-between align-items-center py-2">
                         <div>
-                            <div class="fw-semibold small">${esc(r.product)}</div>
+                            <div class="fw-semibold small">${productLabel}</div>
                             <div class="text-muted" style="font-size:0.72rem">${fDate(r.date)}${r.customer ? ' &bull; ' + esc(r.customer) : ''}</div>
                         </div>
                         <div class="text-end">
-                            <div class="fw-bold text-success small">৳${fNum(r.totalRevenue)}</div>
-                            <div class="text-muted" style="font-size:0.7rem">${fWeight(r.quantityGrams)}</div>
+                            <div class="fw-bold ${isPaid ? 'text-success' : 'text-danger'} small">৳${fNum(r.totalRevenue)}</div>
+                            <span class="badge ${isPaid ? 'bg-success' : 'bg-danger'}" style="font-size:0.58rem">${isPaid ? 'Paid' : 'Due'}</span>
                         </div>
                     </div>
-                </div>`).join('');
+                </div>`;
+            }).join('');
     }
 
     // Product chips
@@ -725,7 +756,11 @@ function showStatDetail(type) {
     const totalOther   = db.costs.reduce((s, r) => s + (r.amount || 0), 0);
     const totalMachine = db.production.reduce((s, r) => s + machineCost(r), 0);
     const totalInvest  = totalRaw + totalOther + totalMachine;
-    const totalRevenue = db.sales.reduce((s, r) => s + (r.totalRevenue || 0), 0);
+    const totalPaid    = db.sales.filter(r => (r.paymentStatus || 'paid') === 'paid')
+                                  .reduce((s, r) => s + (r.totalRevenue || 0), 0);
+    const totalDue     = db.sales.filter(r => r.paymentStatus === 'due')
+                                  .reduce((s, r) => s + (r.totalRevenue || 0), 0);
+    const totalRevenue = totalPaid;
     const profitLoss   = totalRevenue - totalInvest;
 
     const cfgs = {
@@ -768,25 +803,40 @@ function showStatDetail(type) {
     }
 
     else if (type === 'revenue') {
-        const sorted = db.sales.slice().sort((a,b) => b.date.localeCompare(a.date));
+        const sorted   = db.sales.slice().sort((a,b) => b.date.localeCompare(a.date));
+        const paidList = sorted.filter(r => (r.paymentStatus || 'paid') === 'paid');
+        const dueList  = sorted.filter(r => r.paymentStatus === 'due');
+
         if (sorted.length === 0) {
             html = '<div class="text-muted small text-center py-4">No sales yet</div>';
         } else {
-            html = `<p class="text-muted small fw-semibold mb-2">${sorted.length} sale(s)</p>` +
-                sorted.map(r => {
-                    const label = Array.isArray(r.products)
-                        ? r.products.map(p => `${p.quantity}×${p.amount || ''} ${esc(p.product)}`).join(', ')
-                        : esc(r.product || '');
-                    return `<div class="detail-row">
-                        <div style="flex:1;min-width:0">
-                            <div class="detail-label" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label || 'Sale'}</div>
-                            <div class="detail-meta">${fDate(r.date)}${r.customer ? ' · ' + esc(r.customer) : ''}</div>
-                        </div>
-                        <div class="detail-value text-success">৳${fNum(r.totalRevenue)}</div>
-                    </div>`;
-                }).join('') +
+            const makeRow = r => {
+                const isPaid = (r.paymentStatus || 'paid') === 'paid';
+                const label  = Array.isArray(r.products)
+                    ? r.products.map(p => `${p.quantity}×${p.amount || ''} ${esc(p.product)}`).join(', ')
+                    : esc(r.product || '');
+                return `<div class="detail-row">
+                    <div style="flex:1;min-width:0">
+                        <div class="detail-label" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label || 'Sale'}</div>
+                        <div class="detail-meta">${fDate(r.date)}${r.customer ? ' · ' + esc(r.customer) : ''}</div>
+                    </div>
+                    <div class="detail-value ${isPaid ? 'text-success' : 'text-danger'}">৳${fNum(r.totalRevenue)}</div>
+                </div>`;
+            };
+
+            const paidSection = paidList.length > 0
+                ? `<p class="text-muted small fw-semibold mb-1 mt-2"><span class="badge badge-paid me-1">Paid</span>${paidList.length} sale(s)</p>` + paidList.map(makeRow).join('')
+                : '';
+            const dueSection = dueList.length > 0
+                ? `<p class="text-muted small fw-semibold mb-1 mt-3"><span class="badge badge-due me-1">Due</span>${dueList.length} sale(s)</p>` + dueList.map(makeRow).join('')
+                : '';
+
+            html = paidSection + dueSection +
                 `<div class="detail-total">
-                    <span class="detail-total-label"><i class="fas fa-coins me-1"></i>Total Sell</span>
+                    <div>
+                        <div class="detail-total-label"><i class="fas fa-check-circle me-1"></i>Collected (Paid)</div>
+                        ${dueList.length > 0 ? `<div style="font-size:0.72rem;color:#e53935;margin-top:2px">Pending Due: ৳${fNum(totalDue)}</div>` : ''}
+                    </div>
                     <span class="detail-total-value">৳${fNum(totalRevenue)}</span>
                 </div>`;
         }
@@ -1368,37 +1418,34 @@ function renderSales() {
 
     const sorted = db.sales.slice().sort((a, b) => b.date.localeCompare(a.date));
     el.innerHTML = sorted.map(r => {
-        // Build product details string
-        let productDetails = '';
-        if (Array.isArray(r.products) && r.products.length > 0) {
-            productDetails = r.products.map(p => `${p.amount || p.quantity + 'pc'} ${p.product}`).join(', ');
-        } else {
-            productDetails = r.product;
-        }
+        const isPaid = (r.paymentStatus || 'paid') === 'paid';
+        let productDetails = Array.isArray(r.products) && r.products.length
+            ? r.products.map(p => `${p.amount || ''} ${p.product}`).join(', ')
+            : (r.product || '');
 
         return `
-        <div class="card record-card">
+        <div class="card record-card ${!isPaid ? 'sale-due-card' : ''}">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start mb-1">
-                    <div>
-                        <div class="fw-semibold">${esc(productDetails)}</div>
-                        <div class="text-muted small">${fDate(r.date)}${r.customer ? ' &bull; ' + esc(r.customer) : ''}</div>
+                    <div style="flex:1;min-width:0">
+                        <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                            <span class="badge ${isPaid ? 'badge-paid' : 'badge-due'}">${isPaid ? '✓ Paid' : '⏳ Due'}</span>
+                        </div>
+                        <div class="fw-semibold small">${esc(productDetails)}</div>
+                        <div class="text-muted small">${fDate(r.date)}${r.customer ? ' · ' + esc(r.customer) : ''}</div>
+                        ${r.notes ? '<div class="text-muted" style="font-size:0.72rem;margin-top:2px">' + esc(r.notes) + '</div>' : ''}
                     </div>
                     <div class="text-end ms-2">
-                        <div class="fw-bold text-success">৳${fNum(r.totalRevenue)}</div>
+                        <div class="fw-bold ${isPaid ? 'text-success' : 'text-danger'}">৳${fNum(r.totalRevenue)}</div>
                     </div>
                 </div>
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
+                <div class="d-flex justify-content-between align-items-center gap-1 mt-1">
                     <div>
-                        ${r.notes ? '<div class="text-muted small mt-1">' + esc(r.notes) + '</div>' : ''}
+                        ${!isPaid ? `<button class="btn btn-success btn-sm" onclick="markSaleAsPaid('${r.id}')"><i class="fas fa-check me-1"></i>Mark as Paid</button>` : ''}
                     </div>
                     <div class="d-flex gap-1">
-                        <button class="btn btn-outline-primary btn-sm" onclick="openModal('sale','${r.id}')">
-                            <i class="fas fa-pen"></i>
-                        </button>
-                        <button class="btn btn-outline-danger btn-sm" onclick="deleteRecord('sale','${r.id}')">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                        <button class="btn btn-outline-primary btn-sm" onclick="openModal('sale','${r.id}')"><i class="fas fa-pen"></i></button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="deleteRecord('sale','${r.id}')"><i class="fas fa-trash"></i></button>
                     </div>
                 </div>
             </div>

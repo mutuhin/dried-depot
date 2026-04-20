@@ -84,6 +84,7 @@
                             <div class="stat-icon" style="background:rgba(21,101,192,0.1);color:#1565c0"><i class="fas fa-coins"></i></div>
                             <div class="stat-label">Total Sell</div>
                             <div class="stat-value text-primary" id="stat-totalRevenue">৳0</div>
+                            <div class="stat-due d-none" id="stat-dueAmount"></div>
                             <div class="stat-tap">tap for details <i class="fas fa-chevron-right"></i></div>
                         </div>
                     </div>
@@ -594,6 +595,13 @@
                             <span class="fs-5 fw-bold text-success" id="sale-total-display">0</span>
                         </div>
                         <input type="hidden" id="sale-total">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Payment Status *</label>
+                        <select class="form-select" id="sale-payment">
+                            <option value="paid">✓ Paid</option>
+                            <option value="due">⏳ Due (Not yet paid)</option>
+                        </select>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Customer / Buyer <span class="text-muted small">(optional)</span></label>
