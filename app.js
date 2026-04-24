@@ -31,7 +31,7 @@ let deferredInstallPrompt = null;
 // ============================================================
 //  INIT
 // ============================================================
-const CURRENT_VERSION = '14'; // Update this when deploying new features
+const CURRENT_VERSION = '15'; // Update this when deploying new features
 
 document.addEventListener('DOMContentLoaded', () => {
     loadAll();
@@ -40,23 +40,25 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDashboard();
     updateProductDatalist();
 
-    // Check for new version every 5 seconds
-    setInterval(checkForUpdates, 5000);
-    checkForUpdates(); // Check immediately on load
+    // Version-based update detection (works on iOS PWA without SW polling)
+    const metaVer = document.querySelector('meta[name="app-version"]')?.content;
+    const savedVer = localStorage.getItem('dd_app_version');
+    if (metaVer && savedVer && savedVer !== metaVer) {
+        showUpdateBanner();
+    }
+    if (metaVer) localStorage.setItem('dd_app_version', metaVer);
 
     // Re-render report summary when filters change
     ['report-type','report-startDate','report-endDate'].forEach(id => {
         document.getElementById(id).addEventListener('change', updateReportSummary);
     });
 
-    // Service worker registration (PWA)
+    // Service worker registration (PWA) — backup update signals
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('./sw.js').catch(() => {});
-        // SW posts SW_UPDATED message when it activates — most reliable across all scenarios
         navigator.serviceWorker.addEventListener('message', e => {
             if (e.data && e.data.type === 'SW_UPDATED') showUpdateBanner();
         });
-        // Backup: fires when controller changes (skipWaiting)
         let hadController = !!navigator.serviceWorker.controller;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             if (hadController) showUpdateBanner();
@@ -71,9 +73,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const banner = document.getElementById('installBanner');
         if (banner) banner.classList.remove('d-none');
     });
-
-    // Check for updates every 5 seconds
-    setInterval(checkForUpdates, 5000);
 
     // Auto-connect Firebase if previously configured
     autoConnectFirebase();
@@ -1255,7 +1254,7 @@ function renderProduction() {
 // ============================================================
 const CAT_COLORS = {
     Machine:'primary', Grinder:'info', Dryer:'info',
-    Container:'secondary', Labor:'warning', Electricity:'danger',
+    Container:'secondary', Packaging:'info', Labor:'warning', Electricity:'danger',
     Rent:'dark', Transport:'success', Marketing:'purple', Other:'secondary'
 };
 
@@ -1272,7 +1271,14 @@ function renderCosts() {
         return;
     }
 
-    const sorted = db.costs.slice().sort((a, b) => b.date.localeCompare(a.date));
+    const filter = (document.getElementById('costs-filter')?.value) || 'all';
+    let sorted = db.costs.slice().sort((a, b) => b.date.localeCompare(a.date));
+    if (filter !== 'all') sorted = sorted.filter(r => r.category === filter);
+
+    if (sorted.length === 0) {
+        el.innerHTML = `<div class="text-muted small text-center py-3">No ${filter} cost records found.</div>`;
+        return;
+    }
     el.innerHTML = sorted.map(r => `
         <div class="card record-card">
             <div class="card-body">
@@ -1416,7 +1422,16 @@ function renderSales() {
         return;
     }
 
-    const sorted = db.sales.slice().sort((a, b) => b.date.localeCompare(a.date));
+    const filter = (document.getElementById('sales-filter')?.value) || 'all';
+    let sorted = db.sales.slice().sort((a, b) => b.date.localeCompare(a.date));
+    if (filter === 'paid') sorted = sorted.filter(r => (r.paymentStatus || 'paid') === 'paid');
+    else if (filter === 'due') sorted = sorted.filter(r => r.paymentStatus === 'due');
+
+    if (sorted.length === 0) {
+        const label = filter === 'paid' ? 'paid' : 'due';
+        el.innerHTML = `<div class="text-muted small text-center py-3">No ${label} sales found.</div>`;
+        return;
+    }
     el.innerHTML = sorted.map(r => {
         const isPaid = (r.paymentStatus || 'paid') === 'paid';
         let productDetails = Array.isArray(r.products) && r.products.length
@@ -1990,11 +2005,15 @@ function showUpdateBanner() {
 }
 
 function dismissUpdate() {
+    const metaVer = document.querySelector('meta[name="app-version"]')?.content;
+    if (metaVer) localStorage.setItem('dd_app_version', metaVer);
     const b = document.getElementById('updateBanner');
     if (b) b.classList.add('d-none');
 }
 
 function applyUpdate() {
+    const metaVer = document.querySelector('meta[name="app-version"]')?.content;
+    if (metaVer) localStorage.setItem('dd_app_version', metaVer);
     window.location.reload();
 }
 
