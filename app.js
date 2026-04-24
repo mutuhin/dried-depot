@@ -40,14 +40,6 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDashboard();
     updateProductDatalist();
 
-    // Version-based update detection (works on iOS PWA without SW polling)
-    const metaVer = document.querySelector('meta[name="app-version"]')?.content;
-    const savedVer = localStorage.getItem('dd_app_version');
-    if (metaVer && savedVer && savedVer !== metaVer) {
-        showUpdateBanner();
-    }
-    if (metaVer) localStorage.setItem('dd_app_version', metaVer);
-
     // Re-render report summary when filters change
     ['report-type','report-startDate','report-endDate'].forEach(id => {
         document.getElementById(id).addEventListener('change', updateReportSummary);
