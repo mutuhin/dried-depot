@@ -31,7 +31,7 @@ let deferredInstallPrompt = null;
 // ============================================================
 //  INIT
 // ============================================================
-const CURRENT_VERSION = '15'; // Update this when deploying new features
+const CURRENT_VERSION = '19'; // Update this when deploying new features
 
 document.addEventListener('DOMContentLoaded', () => {
     loadAll();
@@ -74,6 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!document.hidden && fbConnected) {
             pullFromFirebase().then(() => {
                 renderDashboard();
+                renderStock();
                 updateProductDatalist();
             });
         }
@@ -87,7 +88,7 @@ function updateCurrentDate() {
 
 function setDefaultDates() {
     const today = new Date().toISOString().split('T')[0];
-    ['purchase-date','production-date','cost-date','sale-date'].forEach(id => {
+    ['purchase-date','production-date','cost-date','sale-date','stock-date'].forEach(id => {
         const el = document.getElementById(id);
         if (el && !el.value) el.value = today;
     });
@@ -244,6 +245,7 @@ function populateForm(type, id) {
         const r = db.stock.find(x => x.id === id);
         if (!r) return;
         set('stock-id', r.id);
+        set('stock-date', r.date || r.createdAt?.split('T')[0] || '');
         set('stock-product', r.product);
         set('stock-packetSize', r.packetSize);
         set('stock-packets', r.totalPackets);
@@ -1317,7 +1319,8 @@ function renderStock() {
 
     const sorted = db.stock.slice().sort((a, b) => a.product.localeCompare(b.product));
     el.innerHTML = sorted.map(r => {
-        const sold = calcPacketsSold(r.product, r.packetSize);
+        const fromDate = r.date || r.createdAt?.split('T')[0];
+        const sold = calcPacketsSold(r.product, r.packetSize, fromDate);
         const remaining = Math.max(0, r.totalPackets - sold);
         const pct = r.totalPackets > 0 ? Math.min(100, (remaining / r.totalPackets) * 100) : 0;
         const barColor = pct > 50 ? 'bg-success' : pct > 20 ? 'bg-warning' : 'bg-danger';
@@ -1329,6 +1332,7 @@ function renderStock() {
                     <div>
                         <div class="fw-semibold">${esc(r.product)}</div>
                         <span class="badge bg-secondary">${esc(r.packetSize)} packets</span>
+                        ${fromDate ? `<div class="text-muted" style="font-size:0.7rem">Added ${fDate(fromDate)}</div>` : ''}
                     </div>
                     <div class="d-flex gap-1">
                         <button class="btn btn-outline-primary btn-sm" onclick="openModal('stock','${r.id}')">
@@ -1362,8 +1366,9 @@ function renderStock() {
     }).join('');
 }
 
-function calcPacketsSold(productName, packetSize) {
+function calcPacketsSold(productName, packetSize, fromDate) {
     return db.sales.reduce((total, sale) => {
+        if (fromDate && sale.date < fromDate) return total;
         if (Array.isArray(sale.products)) {
             return total + sale.products
                 .filter(p => p.product === productName && p.amount === packetSize)
@@ -1385,6 +1390,7 @@ function saveStock() {
     const id = val('stock-id');
     const record = {
         id:           id || uid(),
+        date:         val('stock-date'),
         product:      val('stock-product'),
         packetSize:   val('stock-packetSize').trim(),
         totalPackets: parseInt(val('stock-packets')) || 0,
@@ -1860,6 +1866,7 @@ function connectFirebase(dbUrl, key) {
         fbConnected = true;
         setSyncStatus('synced');
         renderDashboard();
+        renderStock();
         updateProductDatalist();
     }).catch(() => setSyncStatus('error'));
 }
@@ -1876,6 +1883,7 @@ async function pushToFirebase() {
                 production: arrToObj(db.production),
                 costs:      arrToObj(db.costs),
                 sales:      arrToObj(db.sales),
+                stock:      arrToObj(db.stock),
                 _updated:   Date.now()
             })
         });
@@ -1899,7 +1907,10 @@ async function pullFromFirebase() {
             if (data.production !== undefined) db.production = objToArr(data.production);
             if (data.costs      !== undefined) db.costs      = objToArr(data.costs);
             if (data.sales      !== undefined) db.sales      = objToArr(data.sales);
+            if (data.stock      !== undefined) db.stock      = objToArr(data.stock);
             saveAllLocal();
+            // stock key was never in Firebase before — push it now so other devices receive it
+            if (data.stock === undefined) await pushToFirebase();
         } else {
             await pushToFirebase();
         }
@@ -2068,6 +2079,7 @@ function restoreData(event) {
             renderProduction();
             renderCosts();
             renderSales();
+            renderStock();
             updateProductDatalist();
             toast('Data restored successfully!', 'success');
         } catch {

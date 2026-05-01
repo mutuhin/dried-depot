@@ -10,7 +10,7 @@
     <script>
     // Runs from index.html which is ALWAYS fetched fresh — no caching issues
     (function(){
-        var V = '31';
+        var V = '34';
         var k = 'dd_app_version';
         var old = localStorage.getItem(k);
         if (old && old !== V) {
@@ -770,6 +770,10 @@
             <div class="modal-body">
                 <form id="stockForm" novalidate>
                     <input type="hidden" id="stock-id">
+                    <div class="mb-3">
+                        <label class="form-label">Date *</label>
+                        <input type="date" class="form-control" id="stock-date" required>
+                    </div>
                     <div class="mb-3">
                         <label class="form-label">Product *</label>
                         <select class="form-select" id="stock-product" required>
