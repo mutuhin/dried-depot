@@ -1320,7 +1320,7 @@ function renderStock() {
     const sorted = db.stock.slice().sort((a, b) => a.product.localeCompare(b.product));
     el.innerHTML = sorted.map(r => {
         const fromDate = r.date || r.createdAt?.split('T')[0];
-        const sold = calcPacketsSold(r.product, r.packetSize, fromDate);
+        const sold = calcPacketsSold(r.product, r.packetSize);
         const remaining = Math.max(0, r.totalPackets - sold);
         const pct = r.totalPackets > 0 ? Math.min(100, (remaining / r.totalPackets) * 100) : 0;
         const barColor = pct > 50 ? 'bg-success' : pct > 20 ? 'bg-warning' : 'bg-danger';
