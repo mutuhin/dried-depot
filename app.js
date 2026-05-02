@@ -1366,12 +1366,11 @@ function renderStock() {
     }).join('');
 }
 
-function calcPacketsSold(productName, packetSize, fromDate) {
+function calcPacketsSold(productName, packetSize) {
     return db.sales.reduce((total, sale) => {
-        if (fromDate && sale.date < fromDate) return total;
         if (Array.isArray(sale.products)) {
             return total + sale.products
-                .filter(p => p.product === productName && p.amount === packetSize)
+                .filter(p => p.product === productName && (!p.amount || p.amount === packetSize))
                 .reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0);
         }
         return total;
